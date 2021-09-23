@@ -1,13 +1,17 @@
 """各種 PSI セクションの定義"""
 
+from ariblib.diidescriptors import diiDescriptor, diidescriptors
 from ariblib.descriptors import (
     descriptors,
     ExtendedEventDescriptor,
     StreamIdentifierDescriptor,
 )
 from ariblib.mnemonics import (
+    aribstr,
     bcdtime,
     bslbf,
+    case,
+    char,
     loop,
     raw,
     rpchof,
@@ -164,7 +168,7 @@ class ProgramMapSection(Section):
                 pass
 
     def video_pids(self):
-        "動画パケットの PID を返すジェネレータ"""
+        """動画パケットの PID を返すジェネレータ"""
 
         video_types = (0x01, 0x02, 0x10)
         for stream in self.maps:
@@ -177,6 +181,14 @@ class ProgramMapSection(Section):
         audio_types = (0x03, 0x04, 0x0F, 0x11)
         for stream in self.maps:
             if stream.stream_type in audio_types:
+                yield stream.elementary_PID
+
+    @property
+    def data_pids(self):
+        """データ放送の PID を返すジェネレータ"""
+        data_types = (0x0B, 0x0C, 0x0D)
+        for stream in self.maps:
+            if stream.stream_type in data_types:
                 yield stream.elementary_PID
 
 
@@ -772,7 +784,92 @@ class DSMCCSection(Section):
 
     """ARIB-STD-B24-3-6.5
 
-    FIXME: 未実装
+    FIXME: 実装中
     """
 
     _table_ids = [0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F]
+
+    table_id = uimsbf(8)
+    section_syntax_indicator = bslbf(1)
+    private_indicator = bslbf(1)
+    reserved_1 = bslbf(2)
+    dsmcc_section_length = uimsbf(12)
+    table_id_extension = uimsbf(16)
+    reserved_2 = bslbf(2)
+    version_number = uimsbf(5)
+    current_next_indicator = bslbf(1)
+    section_number = uimsbf(8)
+    last_section_number = uimsbf(8)
+
+    @case(lambda self: self.table_id == 0x3B)
+    class userNetWorkMessage(Syntax):  # DII
+        @case(lambda _: True)
+        class dsmccMessageHeader(Syntax):
+            protocolDiscriminator = uimsbf(8)
+            dsmccType = uimsbf(8)
+            messageId = uimsbf(16)
+            transaction_id = uimsbf(32)
+            reserved = bslbf(8)
+            adaptationLength = uimsbf(8)
+            messageLength = uimsbf(16)
+
+            @case(lambda self: self.adaptationLength > 0)
+            class dsmccAdaptationHeader(Syntax):
+                adaptationType = uimsbf(8)
+
+                @loop(lambda: DSMCCSection.userNetWorkMessage.dsmccMessageHeader.adaptationLength)
+                class adaptationDataBytes(Syntax):
+                    adaptationDataByte = uimsbf(8)
+        downloadId = uimsbf(32)
+        blockSize = uimsbf(16)
+        windowSize = uimsbf(8)
+        ackPeriod = uimsbf(8)
+        tCDownloadWindow = uimsbf(32)
+        tCDownloadScenario = uimsbf(32)
+        compatibilityDescriptor = uimsbf(32)
+        numberOfModules = uimsbf(16)
+
+        @times(numberOfModules)
+        class modules(Syntax):
+            moduleId = uimsbf(16)
+            moduleSize = uimsbf(32)
+            moduleVersion = uimsbf(8)
+            moduleInfoLength = uimsbf(8)
+            moduleDescriptors = diidescriptors(moduleInfoLength)
+        privateDataLength = uimsbf(16)
+
+        @loop(privateDataLength)
+        class privateDataBytes(Syntax):
+            privateDataByte = uimsbf(8)
+
+    @case(lambda self: self.table_id == 0x3C)
+    class downloadDataMessage(Syntax):  # DDB
+        @case(lambda _: True)
+        class dsmccDownloadDataHeader(Syntax):
+            protocolDiscriminator = uimsbf(8)
+            dsmccType = uimsbf(8)
+            messageId = uimsbf(16)
+            downloadId = uimsbf(32)
+            reserved_1 = bslbf(8)
+            adaptationLength = uimsbf(8)
+            messageLength = uimsbf(16)
+
+            @case(lambda self: self.adaptationLength > 0)
+            class dsmccAdaptationHeader(Syntax):
+                adaptationType = uimsbf(8)
+                adaptationDataBytes = raw(lambda self: self.adaptationLength-1)
+        moduleId = uimsbf(16)
+        moduleVersion = uimsbf(8)
+        reserved_2 = bslbf(8)
+        blockNumber = uimsbf(16)
+        blockDataBytes = raw(lambda self: self.messageLength -
+                             self.adaptationLength - 6)  # 16 + 8 + 8 + 16 bits
+
+    @case(lambda self: self.table_id == 0x3E)
+    class private_data_bytes(Syntax):
+        private_data_bytes = raw(lambda self: self.dsmcc_section_length-9)
+
+    if section_syntax_indicator == 0:
+        Checksum = uimsbf(32)
+    else:
+        CRC_32 = rpchof(32)
