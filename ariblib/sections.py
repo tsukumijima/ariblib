@@ -184,12 +184,16 @@ class ProgramMapSection(Section):
                 yield stream.elementary_PID
 
     @property
-    def data_pids(self):
-        """データ放送の PID を返すジェネレータ"""
+    def data_pids_with_comoponent_tag(self):
+        """データ放送の PIDとcomoponent_tag を返すジェネレータ"""
         data_types = (0x0B, 0x0C, 0x0D)
         for stream in self.maps:
             if stream.stream_type in data_types:
-                yield stream.elementary_PID
+                try:
+                    component_tag = stream.descriptors[StreamIdentifierDescriptor][0].component_tag
+                    yield stream.elementary_PID, component_tag
+                except KeyError:
+                    pass
 
 
 class ConditionalAccessSection(Section):
@@ -869,7 +873,10 @@ class DSMCCSection(Section):
     class private_data_bytes(Syntax):
         private_data_bytes = raw(lambda self: self.dsmcc_section_length-9)
 
-    if section_syntax_indicator == 0:
+    @case(lambda self: self.section_syntax_indicato == 0)
+    class check_sum(Syntax):
         Checksum = uimsbf(32)
-    else:
+
+    @case(lambda self: self.section_syntax_indicato != 0)
+    class crc_32(Syntax):
         CRC_32 = rpchof(32)
