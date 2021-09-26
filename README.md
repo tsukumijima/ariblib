@@ -218,30 +218,30 @@ def save_file(component_tag, module_id, diis, cache_ddbs, parser: email.parser.B
     if module_info.is_compressed:
         try:
             data = zlib.decompress(data)
-            message = parser.parsebytes(data)
-            for part in message.walk():
-                if part.get_content_maintype() == "multipart":
-                    continue
-                else:
-                    headers = part._headers
-
-                    for header in headers:
-                        if header[0] == "Content-Location":
-                            if header[1] == "":
-                                print("Found x-arib-resource-list, Skip.")
-                                continue
-                            p = pathlib.Path(
-                                f"output/{component_tag}/{module_id}/{module_info.download_id}/")
-                            p.mkdir(parents=True, exist_ok=True)
-                            filename = header[1]
-                            filepath = p/filename
-                            print(
-                                f"Save {filename} to output/{component_tag}/{module_id}/{module_info.download_id}/")
-                            with filepath.open("wb") as f:
-                                f.write(part.get_payload(decode=True))
-
         except zlib.error:
             print("Decompress failed. Data may be broken.")
+            return
+    message = parser.parsebytes(data)
+    for part in message.walk():
+        if part.get_content_maintype() == "multipart":
+            continue
+        else:
+            headers = part._headers
+
+            for header in headers:
+                if header[0] == "Content-Location":
+                    if header[1] == "":
+                        print("Found x-arib-resource-list, Skip.")
+                        continue
+                    p = pathlib.Path(
+                        f"output/{component_tag}/{module_id}/{module_info.download_id}/")
+                    p.mkdir(parents=True, exist_ok=True)
+                    filename = header[1]
+                    filepath = p/filename
+                    print(
+                        f"Save {filename} to output/{component_tag}/{module_id}/{module_info.download_id}/")
+                    with filepath.open("wb") as f:
+                        f.write(part.get_payload(decode=True))
 
     return
 
@@ -251,7 +251,7 @@ def main():
     diis = defaultdict(dict)
     cache_ddbs = defaultdict(lambda: defaultdict(dict))
 
-    with tsopen(sys.argv[1]) as ts:
+    with tsopen("f:/nhk.ts") as ts:
         pat = next(ts.sections(ProgramAssociationSection))
         ProgramMapSection._pids = list(pat.pmt_pids)
         typs = set()
