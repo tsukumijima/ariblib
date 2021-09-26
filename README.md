@@ -175,6 +175,8 @@ with tsopen(sys.argv[1]) as ts:
 
 ### 例 7: データ放送ファイルの抽出
 
+Type Hints を使うため，Python 3.5+が必要
+
 ```python
 #!/usr/bin/python
 # -*- coding: UTF-8 -*
