@@ -48,8 +48,8 @@ def epg(args):
         outpath = args.outpath
 
     with tsopen(args.inpath) as ts:
-        for epg in extract_epg(ts):
-            with open(outpath, 'w') as fw:
+        with open(outpath, 'w') as fw:
+            for epg in extract_epg(ts):
                 print(epg, file=fw)
 
 def add_parser(parsers):
