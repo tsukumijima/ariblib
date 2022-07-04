@@ -29,10 +29,13 @@ def extract_epg(ts, threshold=5):
 
         events = [Event(section, e) for e in section.events]
         for event in events:
-            # The key to uniquely identify each program.
-            key = (str(event.start_time), str(event.title))
-            count[key] += 1
-            programs[key] = dump_json(event)
+            duration = getattr(event, "duration", None)
+            genre = getattr(event, "genre", None)
+            if duration and genre:
+                # The key to uniquely identify each program.
+                key = (str(event.start_time), str(event.title))
+                count[key] += 1
+                programs[key] = dump_json(event)
 
     for key in sorted(programs):
         # EPG info is transmitted once per second over network, and we
