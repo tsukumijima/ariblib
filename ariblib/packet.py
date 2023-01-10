@@ -98,6 +98,7 @@ class TransportStreamFile(BufferedReader):
                 while buffer and buffer[0] != 0xFF:
                     if buffer[0] in table_ids:
                         section = target_ids[(PID, buffer[0])](buffer[:])
+                        section._pid = PID
                         yield section
                     try:
                         if buffer[0:3] == b'\x00\x00\x01':
@@ -119,6 +120,7 @@ class TransportStreamFile(BufferedReader):
             if buffer and buffer[0] in table_ids:
                 section = target_ids[(PID, buffer[0])](buffer[:])
                 if section.isfull():
+                    section._pid = PID
                     yield section
 
     tables = sections

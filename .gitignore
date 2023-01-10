@@ -30,3 +30,12 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+#vscode
+.vscode
+
+#pycharm
+.idea
+
+playground*
+output
