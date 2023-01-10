@@ -1,8 +1,8 @@
-#!/usr/bin/env python3.2
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
-import sys
+import array
 import io
+import sys
 
 from ariblib.aribgaiji import *
 

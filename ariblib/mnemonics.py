@@ -207,18 +207,6 @@ class char(mnemonic):
         return ''.join(map(chr, instance._packet[block:last]))
 
 
-class cp932(mnemonic):
-
-    """CP932文字列"""
-
-    @cache
-    def __get__(self, instance, owner):
-        start = self.start(instance)
-        block = start // 8
-        last = block + self.real_length(instance) // 8
-        return unicode(char(instance._packet, size, cur), 'CP932')
-
-
 class raw(mnemonic):
     """アレイそのまま"""
 

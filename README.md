@@ -185,7 +185,6 @@ Type Hints を使うため，Python 3.5+が必要
 
 ```python
 #!/usr/bin/python
-# -*- coding: UTF-8 -*
 from collections import defaultdict
 from ariblib import tsopen
 from ariblib.diidescriptors import TypeDescriptor, CompressionTypeDescriptor

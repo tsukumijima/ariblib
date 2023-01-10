@@ -1,13 +1,10 @@
-from datetime import datetime, timedelta
-from hashlib import md5
-import os.path
 import sys
+from datetime import datetime
 
 from ariblib import tsopen
 from ariblib.caption import WebVTTCProfileString
 from ariblib.packet import SynchronizedPacketizedElementaryStream
 from ariblib.sections import TimeOffsetSection
-from ariblib.mnemonics import hexdump
 
 
 def vtt(args):

@@ -1,9 +1,11 @@
-import sys
 import json
+import sys
 from collections import defaultdict
+
 from ariblib import tsopen
 from ariblib.event import Event
 from ariblib.sections import EventInformationSection
+
 
 def dump_json(event):
     return json.dumps({

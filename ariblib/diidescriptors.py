@@ -13,7 +13,7 @@ from ariblib.mnemonics import (
     mnemonic,
     raw,
     rpchof,
-    uimsbf
+    uimsbf,
 )
 from ariblib.syntax import Syntax
 

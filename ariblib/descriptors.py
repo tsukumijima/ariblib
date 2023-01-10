@@ -14,7 +14,7 @@ from ariblib.mnemonics import (
     mnemonic,
     raw,
     times,
-    uimsbf
+    uimsbf,
 )
 from ariblib.syntax import Syntax
 

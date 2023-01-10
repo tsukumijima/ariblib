@@ -1,6 +1,6 @@
-from argparse import ArgumentParser
 import importlib
 import os
+from argparse import ArgumentParser
 
 
 def main():

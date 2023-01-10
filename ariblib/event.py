@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.2
+#!/usr/bin/env python3
 
 """イベントラッパー"""
 
@@ -112,6 +112,7 @@ class Event(object):
             self.detail = dict(detail)
             self.longdesc = '\n'.join(
                 "{}\n{}\n".format(key, value) for key, value in detail)
+
 
 if __name__ == '__main__':
     from subprocess import Popen, PIPE

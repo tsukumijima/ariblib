@@ -14,8 +14,8 @@ from ariblib.mnemonics import (
     times,
     uimsbf,
 )
-from ariblib.syntax import Syntax
 from ariblib.sections import Section
+from ariblib.syntax import Syntax
 
 """
 パケット層の定義

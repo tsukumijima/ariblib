@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ARIB外字
 original: https://github.com/murakamiy/epgdump_py/blob/master/aribgaiji.py

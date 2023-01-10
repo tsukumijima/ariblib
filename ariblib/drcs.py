@@ -9,9 +9,10 @@ else:
     text_output = False
 
 import csv
-import os.path
+import os
 
 import ariblib
+
 
 save_dir = os.path.expanduser('~/.ariblib/drcs/')
 mapping_path = os.path.join((os.path.split(ariblib.__file__)[0]), 'drcs.tsv')

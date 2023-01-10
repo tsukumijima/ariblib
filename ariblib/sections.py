@@ -1,21 +1,19 @@
 """各種 PSI セクションの定義"""
 
-from ariblib.diidescriptors import diidescriptors
 from ariblib.descriptors import (
     descriptors,
     ExtendedEventDescriptor,
     StreamIdentifierDescriptor,
 )
+from ariblib.diidescriptors import diidescriptors
 from ariblib.mnemonics import (
-    aribstr,
     bcdtime,
     bslbf,
     case,
-    char,
     loop,
+    mjd,
     raw,
     rpchof,
-    mjd,
     times,
     uimsbf,
 )
