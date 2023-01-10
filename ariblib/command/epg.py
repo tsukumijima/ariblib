@@ -53,7 +53,7 @@ def epg(args):
         outpath = args.outpath
 
     with tsopen(args.inpath) as ts:
-        with open(outpath, 'w') as fw:
+        with open(outpath, mode='w', encoding='utf-8') as fw:
             for epg in extract_epg(ts):
                 print(epg, file=fw)
 

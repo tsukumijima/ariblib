@@ -26,7 +26,7 @@ if not os.path.isdir(save_dir):
 
 for path in (mapping_path, user_mapping_path):
     try:
-        with open(path) as f:
+        with open(path, encoding='utf-8') as f:
             reader = csv.reader(f, delimiter='\t')
             mapping.update(line for line in reader)
     except IOError:
@@ -84,7 +84,7 @@ class DRCSText(object):
             if self.hash is None:
                 raise ValueError('画像イメージが作成されていません')
             path = self.hash
-        with open(os.path.join(save_dir, path + '.' + ext), 'w') as out:
+        with open(os.path.join(save_dir, path + '.' + ext), mode='w', encoding='utf-8') as out:
             out.write('\n'.join(self.dots))
 
 

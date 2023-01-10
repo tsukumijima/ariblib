@@ -12,7 +12,7 @@ def vtt(args):
         outpath = sys.stdout.fileno()
     else:
         outpath = args.outpath
-    with tsopen(args.inpath) as ts, open(outpath, 'w') as out:
+    with tsopen(args.inpath) as ts, open(outpath, mode='w', encoding='utf-8') as out:
         SynchronizedPacketizedElementaryStream._pids = [ts.get_caption_pid()]
 
         base_pcr = next(ts.pcrs())

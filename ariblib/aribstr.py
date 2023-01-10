@@ -370,7 +370,7 @@ class AribString:
         return self.convert_utf().rstrip()
 
 if __name__ == '__main__':
-    f = open(sys.argv[1], 'rb')
+    f = open(sys.argv[1], mode='rb')
     f.seek(0, 2)
     byte = f.tell()
     f.seek(0)
@@ -381,6 +381,6 @@ if __name__ == '__main__':
     arib = AribString(arr)
     arib.convert()
 
-    f = open("output.txt", 'wb')
+    f = open("output.txt", mode='wb')
     arib.jis_array.tofile(f)
     f.close()

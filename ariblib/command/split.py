@@ -50,7 +50,7 @@ def split(args):
                              if pmt_map.stream_type != 0x0d)
 
     pat_pid = ProgramAssociationSection._pids[0]
-    with tsopen(args.inpath) as ts, open(args.outpath, 'wb') as out:
+    with tsopen(args.inpath) as ts, open(args.outpath, mode='wb') as out:
         for p in ts:
             pid = packet.pid(p)
             if pid == pat_pid:
