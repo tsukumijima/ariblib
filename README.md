@@ -6,17 +6,10 @@ m2ts をパースするライブラリと、応用を行ういくつかのコマ
 
 ## インストール
 
-pip からインストールするには以下のようにします:
+pip からインストール/アップグレードするには以下のようにします:
 
 ```
-$ sudo pip install ariblib
-```
-
-パッケージインストールがうまくいかない場合や、直接ソースコードからパッケージを作成する場合は:
-
-```
-$ git clone https://github.com/youzaka/ariblib.git
-$ sudo python setup.py install
+$ sudo pip install -U git+https://github.com/tsukumijima/ariblib.git
 ```
 
 ## コマンド利用例
