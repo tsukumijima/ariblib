@@ -4,7 +4,6 @@ from collections import defaultdict
 
 from ariblib.mnemonics import (
     aribstr,
-    bcd,
     bslbf,
     cache,
     case,
@@ -14,7 +13,6 @@ from ariblib.mnemonics import (
     mnemonic,
     raw,
     rpchof,
-    times,
     uimsbf
 )
 from ariblib.syntax import Syntax
@@ -44,14 +42,14 @@ class diidescriptors(mnemonic):
             descriptor_tag = instance._packet[start]
             descriptor_length = instance._packet[start + 1] + 2
             block_end = start + descriptor_length
-            desc_class = diiDescriptor.get(descriptor_tag)
+            desc_class = DIIDescriptor.get(descriptor_tag)
             inner = desc_class(instance._packet[start:block_end])
             result[desc_class].append(inner)
             start = block_end
         return result
 
 
-class diiDescriptor(Syntax):
+class DIIDescriptor(Syntax):
 
     """DII記述子の親クラス"""
 
@@ -61,28 +59,34 @@ class diiDescriptor(Syntax):
 
     @staticmethod
     def get(tag):
-        return tags.get(tag, diiDescriptor)
+        return tags.get(tag, DIIDescriptor)
 
 
 @tag(0x01)
-class Type_descriptor(diiDescriptor):
+class TypeDescriptor(DIIDescriptor):
+
     """Type 記述子 (ARIB-STD-B24-3-6.2.3.1　表6-5)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     text = char(lambda self: self.descriptor_length)
 
 
 @tag(0x02)
-class Name_descriptor(diiDescriptor):
+class NameDescriptor(DIIDescriptor):
+
     """Name 記述子 (ARIB-STD-B24-3-6.2.3.2　表6-6)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     text = char(descriptor_length)
 
 
 @tag(0x03)
-class info_descriptor(diiDescriptor):
+class InfoDescriptor(DIIDescriptor):
+
     """Info 記述子 (ARIB-STD-B24-3-6.2.3.3　表6-7)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     ISO_639_language_code = char(24)
@@ -90,8 +94,10 @@ class info_descriptor(diiDescriptor):
 
 
 @tag(0x04)
-class module_link_descriptor(diiDescriptor):
+class ModuleLinkDescriptor(DIIDescriptor):
+
     """Module_Link 記述子 (ARIB-STD-B24-3-6.2.3.4　表6-8)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     position = uimsbf(8)
@@ -99,24 +105,30 @@ class module_link_descriptor(diiDescriptor):
 
 
 @tag(0x05)
-class CRC32_descriptor(diiDescriptor):
+class CRC32Descriptor(DIIDescriptor):
+
     """CRC 記述子 (ARIB-STD-B24-3-6.2.3.5　表6-9)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     CRC_32 = rpchof(32)
 
 
 @tag(0x07)
-class est_download_time_descriptor(diiDescriptor):
+class EstDownloadTimeDescriptor(DIIDescriptor):
+
     """ダウンロード推定時間記述子 (ARIB-STD-B24-3-6.2.3.6　表6-10)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     est_download_time = uimsbf(32)
 
 
 @tag(0xC0)
-class Expire_descriptor(diiDescriptor):
+class ExpireDescriptor(DIIDescriptor):
+
     """Expire 記述子 (ARIB-STD-B24-3-6.2.3.7　表6-11)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     time_mode = uimsbf(8)
@@ -132,8 +144,10 @@ class Expire_descriptor(diiDescriptor):
 
 
 @tag(0xC1)
-class Activation_Time_descriptor(diiDescriptor):
+class ActivationTimeDescriptor(DIIDescriptor):
+
     """ActivationTime 記述子 (ARIB-STD-B24-3-6.2.3.8　表6-12)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     time_mode = uimsbf(8)
@@ -158,8 +172,10 @@ class Activation_Time_descriptor(diiDescriptor):
 
 
 @tag(0xC2)
-class Compression_Type_descriptor(diiDescriptor):
+class CompressionTypeDescriptor(DIIDescriptor):
+
     """CompressionType 記述子 (ARIB-STD-B24-3-6.2.3.9　表6-13)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     compression_type = uimsbf(8)
@@ -167,8 +183,10 @@ class Compression_Type_descriptor(diiDescriptor):
 
 
 @tag(0xC3)
-class Control_descriptor(diiDescriptor):
+class ControlDescriptor(DIIDescriptor):
+
     """Control 記述子 (ARIB-STD-B24-3-6.2.3.10　表6-14)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
 
@@ -178,11 +196,13 @@ class Control_descriptor(diiDescriptor):
 
 
 @tag(0xC4)
-class Provider_Private_descriptor(diiDescriptor):
+class ProviderPrivateDescriptor(DIIDescriptor):
+
     """ProviderPrivate 記述子 (ARIB-STD-B24-3-6.2.3.11　表6-15)
 
     FIXME: private_scope_typeに対応するすべての識別子の処理の実装
     """
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     private_scope_type = bslbf(8)
@@ -194,8 +214,10 @@ class Provider_Private_descriptor(diiDescriptor):
 
 
 @tag(0xC5)
-class store_root_descriptor(diiDescriptor):
+class StoreRootDescriptor(DIIDescriptor):
+
     """StoreRoot 記述子(ARIB-STD-B24-3-6.2.3.12　表6-16)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     update_type = bslbf(1)
@@ -205,16 +227,20 @@ class store_root_descriptor(diiDescriptor):
 
 
 @tag(0xC6)
-class subdirectory_descriptor(diiDescriptor):
+class SubdirectoryDescriptor(DIIDescriptor):
+
     """Subdirectory 記述子 (ARIB-STD-B24-3-6.2.3.13　表6-17)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     subdirectory_path = char(descriptor_length)
 
 
 @tag(0xC7)
-class title_descriptor(diiDescriptor):
+class TitleDescriptor(DIIDescriptor):
+
     """Title 記述子 (ARIB-STD-B24-3-6.2.3.14　表6-18)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     ISO_639_language_code = bslbf(24)
@@ -222,8 +248,10 @@ class title_descriptor(diiDescriptor):
 
 
 @tag(0xC8)
-class data_encoding_descriptor(diiDescriptor):
+class DataEncodingDescriptor(DIIDescriptor):
+
     """DataEncoding 記述子(ARIB-STD-B24-3-6.2.3.15　表6-19)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     data_compoent_id = uimsbf(16)
@@ -232,8 +260,10 @@ class data_encoding_descriptor(diiDescriptor):
 
 
 @tag(0xCA)
-class root_cetificate_descriptor(diiDescriptor):
+class RootCertificateDescriptor(DIIDescriptor):
+
     """ルート証明書記述子 (ARIB-STD-B24-3-6.2.3.16　表6-20)"""
+
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     root_certificate_type = bslbf(1)

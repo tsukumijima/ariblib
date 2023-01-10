@@ -188,7 +188,7 @@ Type Hints を使うため，Python 3.5+が必要
 # -*- coding: UTF-8 -*
 from collections import defaultdict
 from ariblib import tsopen
-from ariblib.diidescriptors import Type_descriptor, Compression_Type_descriptor
+from ariblib.diidescriptors import TypeDescriptor, CompressionTypeDescriptor
 from ariblib.sections import ProgramAssociationSection, ProgramMapSection, DSMCCSection
 import pathlib
 import zlib

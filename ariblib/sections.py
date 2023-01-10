@@ -1,6 +1,6 @@
 """各種 PSI セクションの定義"""
 
-from ariblib.diidescriptors import diiDescriptor, diidescriptors
+from ariblib.diidescriptors import diidescriptors
 from ariblib.descriptors import (
     descriptors,
     ExtendedEventDescriptor,
