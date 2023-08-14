@@ -250,6 +250,20 @@ class NetworkInformationSection(Section):
     CRC_32 = rpchof(32)
 
 
+class ActualStreamNetworkInformationSection(NetworkInformationSection):
+
+    """自ストリームNIT"""
+
+    _table_ids = [0x40]
+
+
+class OtherStreamNetworkInformationSection(NetworkInformationSection):
+
+    """他ストリームNIT"""
+
+    _table_ids = [0x41]
+
+
 class ServiceDescriptionSection(Section):
 
     """サービス記述セクション SDT (ARIB-STD-B10-2-5.2.6)"""
@@ -297,7 +311,7 @@ class OtherStreamServiceDescriptionSection(ServiceDescriptionSection):
 
     """他ストリームSDT"""
 
-    _tale_ids = [0x46]
+    _table_ids = [0x46]
 
 
 class BouquetAssociationSection(Section):
@@ -385,9 +399,7 @@ class ActualStreamEventInformationSection(EventInformationSection):
     _table_ids = range(0x50, 0x60)
 
 
-class ActualStreamPresentFollowingEventInformationSection(
-    ActualStreamEventInformationSection
-):
+class ActualStreamPresentFollowingEventInformationSection(ActualStreamEventInformationSection):
 
     """自ストリームEIT[p/f]"""
 
@@ -401,9 +413,7 @@ class OtherStreamEventInformationSection(EventInformationSection):
     _table_ids = range(0x60, 0x70)
 
 
-class OtherStreamPresentFollowingEventInformationSection(
-    OtherStreamEventInformationSection
-):
+class OtherStreamPresentFollowingEventInformationSection(OtherStreamEventInformationSection):
 
     """他ストリームEIT[p/f]"""
 
