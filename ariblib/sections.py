@@ -250,16 +250,16 @@ class NetworkInformationSection(Section):
     CRC_32 = rpchof(32)
 
 
-class ActualStreamNetworkInformationSection(NetworkInformationSection):
+class ActualNetworkNetworkInformationSection(NetworkInformationSection):
 
-    """自ストリームNIT"""
+    """自ネットワークNIT"""
 
     _table_ids = [0x40]
 
 
-class OtherStreamNetworkInformationSection(NetworkInformationSection):
+class OtherNetworkNetworkInformationSection(NetworkInformationSection):
 
-    """他ストリームNIT"""
+    """他ネットワークNIT"""
 
     _table_ids = [0x41]
 
