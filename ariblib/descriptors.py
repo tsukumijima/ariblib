@@ -117,12 +117,12 @@ class SatelliteDeliverySystemDescriptor(Descriptor):
 
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
-    frequency = bcd(32, 6)
+    frequency = bcd(32, 5)
     orbital_position = bcd(16, 1)
     west_east_flag = bslbf(1)
     polarisation = bslbf(2)
     modulation = bslbf(5)
-    symbol_rate = bcd(28, 5)
+    symbol_rate = bcd(28, 4)
     FEC_inner = bslbf(4)
 
 
