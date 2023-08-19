@@ -111,7 +111,7 @@ class EscapeSequenceError(Exception):
     pass
 
 
-class DegignationError(Exception):
+class DesignationError(Exception):
     pass
 
 
@@ -131,9 +131,9 @@ class CodeSetController:
         self.esc_buffer_index = Buffer.G0
         self.esc_drcs = False
 
-    def degignate(self, code):
+    def designate(self, code):
         if not code in CODE_SET_KEYS:
-            raise DegignationError(
+            raise DesignationError(
                 'esc_seq_count=%i esc_buffer_index=%s code=0x%02X' % (
                     self.esc_seq_count, self.esc_buffer_index, code
                 )
@@ -357,14 +357,14 @@ class AribString:
             elif data == 0x2B:
                 self.control.set_escape(Buffer.G3, False)
             else:
-                self.control.degignate(data)
+                self.control.designate(data)
         elif self.control.esc_seq_count == 3:
             if data == 0x20:
                 self.control.set_escape(None, True)
             else:
-                self.control.degignate(data)
+                self.control.designate(data)
         elif self.control.esc_seq_count == 4:
-            self.control.degignate(data)
+            self.control.designate(data)
 
     def __repr__(self):
         return self.convert_utf().rstrip()
