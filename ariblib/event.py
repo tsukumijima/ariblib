@@ -101,13 +101,17 @@ class Event(object):
         detail = [('', [])]
         for eed in desc.get(ExtendedEventDescriptor, []):
             for item in eed.items:
-                key = item.item_description_char
-                # タイトルが空か一つ前と同じ場合は本文を一つ前のものにつなげる
-                if str(key) == '' or str(detail[-1][0]) == str(key):
+                key = str(item.item_description_char)
+                # 項目名が空の場合のみ、本文をバイナリレベルで一つ前のものにつなげてからデコードする
+                # ref: ARIB TR-B14 第四分冊 第四編 第1部 4.4.3
+                if key == '':
                     detail[-1][1].extend(item.item_char)
                 else:
+                    # 項目名が重複する場合はタブ文字を追加して区別する
+                    while key in dict(detail):
+                        key += '\t'
                     detail.append((key, item.item_char))
-        detail = [(str(key), AribString(value)) for key, value in detail[1:]]
+        detail = [(key, AribString(value)) for key, value in detail[1:]]
         if detail:
             self.detail = dict(detail)
             self.longdesc = '\n'.join(
