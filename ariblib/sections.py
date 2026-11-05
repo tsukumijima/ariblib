@@ -725,7 +725,7 @@ class LinkedDescriptionSection(Section):
     reserved_future_use_1 = bslbf(1)
     reserved_1 = bslbf(2)
     section_length = uimsbf(12)
-    original_network_id = uimsbf(16)
+    original_service_id = uimsbf(16)
     reserved_2 = bslbf(2)
     version_number = uimsbf(5)
     current_next_indicator = bslbf(1)
