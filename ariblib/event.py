@@ -69,7 +69,10 @@ class Event(object):
             self.video_text = cd.component_text
         for dccd in desc.get(DigitalCopyControlDescriptor, []):
             self.copy_control_type = dccd.copy_control_type
-            self.copy = DIGITAL_RECORDING_CONTROL_TYPE[dccd.copy_control_type]
+            self.digital_recording_control_data =\
+                dccd.digital_recording_control_data
+            self.copy = DIGITAL_RECORDING_CONTROL_TYPE[
+                dccd.digital_recording_control_data]
         for acd in desc.get(AudioComponentDescriptor, []):
             if acd.main_component_flag:
                 self.audio_content = acd.stream_content
