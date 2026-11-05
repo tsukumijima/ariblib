@@ -23,6 +23,19 @@ from ariblib.descriptors import (
 from ariblib.sections import ActualStreamEventInformationSection
 
 
+def component_type_string(stream_content, component_type):
+    """コンポーネント内容とコンポーネント種別に対応する記述を返す。表にない値は '未定義' になる"""
+
+    table = COMPONENT_TYPE.get(stream_content, {})
+    if component_type in table:
+        return table[component_type]
+    # 音声の component_type は、下位5ビットが音声モード、上位3ビットがダイアログ制御と障がい者用音声の有無を表す
+    # 表にない組み合わせは、音声モードだけで記述を引く (ARIB STD-B10 第2部 6.2.26 表6-43)
+    if stream_content in (0x02, 0x03, 0x04):
+        return table.get(component_type & 0x1F, '未定義')
+    return '未定義'
+
+
 def events(ts, section=ActualStreamEventInformationSection):
     """トランスポートストリームから Event オブジェクトを返すジェネレータ"""
 
@@ -51,7 +64,8 @@ class Event(object):
         for cd in desc.get(ComponentDescriptor, []):
             self.video_content = cd.stream_content
             self.video_component = cd.component_type
-            self.video = COMPONENT_TYPE[cd.stream_content][cd.component_type]
+            self.video = component_type_string(
+                cd.stream_content, cd.component_type)
             self.video_text = cd.component_text
         for dccd in desc.get(DigitalCopyControlDescriptor, []):
             self.copy_control_type = dccd.copy_control_type
@@ -61,16 +75,16 @@ class Event(object):
                 self.audio_content = acd.stream_content
                 self.audio_component = acd.component_type
                 self.samplint_rate_type = acd.sampling_rate
-                self.audio =\
-                    COMPONENT_TYPE[acd.stream_content][acd.component_type]
+                self.audio = component_type_string(
+                    acd.stream_content, acd.component_type)
                 self.sampling_rate = acd.sampling_rate
                 self.sampling_rate_string = SAMPLING_RATE[acd.sampling_rate]
                 self.audio_text = acd.audio_text
             else:
                 self.second_audio_content = acd.stream_content
                 self.second_audio_component = acd.component_type
-                self.second_audio =\
-                    COMPONENT_TYPE[acd.stream_content][acd.component_type]
+                self.second_audio = component_type_string(
+                    acd.stream_content, acd.component_type)
                 self.second_sampling_rate = acd.sampling_rate
                 self.second_sampling_rate_string =\
                     SAMPLING_RATE[acd.sampling_rate]
