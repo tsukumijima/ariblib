@@ -3,7 +3,6 @@
 """
 
 from datetime import datetime, timedelta
-from functools import reduce
 
 from ariblib.aribstr import AribString
 
@@ -136,12 +135,12 @@ class bcd(mnemonic):
 
     @cache
     def __get__(self, instance, owner):
+        # 4ビットごとに1桁を読む (symbol_rate の28ビットのようにバイト境界にそろわない長さもある)
         start = self.start(instance)
-        block = start // 8
-        last = block + self.real_length(instance) // 8
-        pbcd = instance._packet[block:last]
-        int_values = map(bcd2int, pbcd)
-        value = reduce(lambda x, y: x * 100 + y, int_values)
+        value = 0
+        for digit in range(self.real_length(instance) // 4):
+            value = value * 10 + uimsbf.uimsbf(
+                instance._packet, start + digit * 4, 4)
         return value / (10 ** self.decimal_point)
 
 
