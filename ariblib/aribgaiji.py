@@ -41,6 +41,10 @@ GAIJI_MAP_TITLE = {
 }
 
 GAIJI_MAP_OTHER = {
+    0x7A4D: "\u2491",  # ⒑
+    0x7A4E: "\u2492",  # ⒒
+    0x7A4F: "\u2493",  # ⒓
+
     0x7A60: "■",
     0x7A61: "●",
     0x7A73: "㊙",
