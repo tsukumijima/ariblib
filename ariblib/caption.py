@@ -10,8 +10,11 @@ def captions(ts, color=False):
     """トランスポートストリームから字幕オブジェクトを返すジェネレータ"""
 
     SynchronizedPacketizedElementaryStream._pids = [ts.get_caption_pid()]
+    # 関数内で CProfileString に代入するとローカル変数になるので、別の名前で使うクラスを選ぶ
     if color:
-        CProfileString = ColoredCProfileString
+        string_class = ColoredCProfileString
+    else:
+        string_class = CProfileString
 
     base_pcr = next(ts.pcrs())
     base_time = next(ts.sections(TimeOffsetSection)).JST_time
@@ -21,14 +24,14 @@ def captions(ts, color=False):
         for data in spes.data_units:
             if data.data_unit_parameter == 0x20:
                 yield Caption(caption_date,
-                              CProfileString(data.data_unit_data))
+                              string_class(data.data_unit_data))
             elif data.data_unit_parameter == 0x30:
                 for code in data.codes:
                     drcs_code = code.character_code & 0xFF
                     for font in code.fonts:
                         image = DRCSImage(font.width, font.height)
                         image.point(font.patterns)
-                        CProfileString.drcs[drcs_code] = image.hash
+                        string_class.drcs[drcs_code] = image.hash
                         image.save()
 
 
@@ -53,6 +56,8 @@ class CProfileString(object):
 
     def __init__(self, data):
         self.data = data
+        # __str__() で文字列化した結果を保持する (文字列化すると self.data を消費するため)
+        self._string = None
 
     def __iter__(self):
         return self
@@ -94,9 +99,9 @@ class CProfileString(object):
                 yield self.mapping[char1]
 
     def __str__(self):
-        str = ''.join(self).strip()
-        self.__str__ = lambda self: str
-        return str
+        if self._string is None:
+            self._string = ''.join(self).strip()
+        return self._string
 
 
 class ColoredCProfileString(CProfileString):
@@ -120,9 +125,9 @@ class ColoredCProfileString(CProfileString):
     }
 
     def __str__(self):
-        str = ''.join(self).strip() + '\033[0m'
-        self.__str__ = lambda self: str
-        return str
+        if self._string is None:
+            self._string = ''.join(self).strip() + '\033[0m'
+        return self._string
 
 
 class WebVTTCProfileString(ColoredCProfileString):
@@ -146,8 +151,8 @@ class WebVTTCProfileString(ColoredCProfileString):
     }
 
     def __str__(self):
-        string = ''.join(self).strip()
-        if string:
-            string += '</c>'
-        self.__str__ = lambda self: string
-        return string
+        if self._string is None:
+            self._string = ''.join(self).strip()
+            if self._string:
+                self._string += '</c>'
+        return self._string
