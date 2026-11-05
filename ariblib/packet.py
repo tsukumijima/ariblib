@@ -76,13 +76,43 @@ class TransportStreamFile(BufferedReader):
 
         target_pids =\
             set(chain.from_iterable(Section._pids for Section in Sections))
-        table_map = defaultdict(set)
         target_ids = dict()
         for Section in Sections:
             for PID in Section._pids:
                 for table_id in Section._table_ids:
                     target_ids[(PID, table_id)] = Section
-                    table_map[PID].add(table_id)
+
+        def extract(PID, buffer):
+            """バッファの先頭から、完成しているセクションを順に取り出して返す"""
+
+            while buffer:
+                # スタッフィングバイトが現れたら、その後ろにセクションはない
+                if buffer[0] == 0xFF:
+                    buffer.clear()
+                    return
+                if buffer[0:3] == b'\x00\x00\x01':
+                    # PES の全長は PES_packet_length + 6 (0 は長さ不定を表す)
+                    if len(buffer) < 6:
+                        return
+                    length = ((buffer[4] << 8) | buffer[5]) + 6
+                    if length == 6:
+                        return
+                else:
+                    # セクションの全長は section_length + 3
+                    if len(buffer) < 3:
+                        return
+                    length = (((buffer[1] & 0x0F) << 8) | buffer[2]) + 3
+                if len(buffer) < length:
+                    return
+                unit = buffer[:length]
+                del buffer[:length]
+
+                Section = target_ids.get((PID, unit[0]))
+                if Section is None:
+                    continue
+                section = Section(unit)
+                section._pid = PID
+                yield section
 
         for packet in self:
             PID = pid(packet)
@@ -90,38 +120,22 @@ class TransportStreamFile(BufferedReader):
                 continue
 
             buffer = buf[PID]
-            table_ids = table_map[PID]
+
             prev, current = payload(packet)
             if payload_unit_start_indicator(packet):
+                # 前のセクションの続きを足して、完成していれば返す
+                # 完成していないデータは捨てて、新しいセクションの組み立てを始める
                 if buffer:
                     buffer.extend(prev)
-                while buffer and buffer[0] != 0xFF:
-                    if buffer[0] in table_ids:
-                        section = target_ids[(PID, buffer[0])](buffer[:])
-                        section._pid = PID
-                        yield section
-                    try:
-                        if buffer[0:3] == b'\x00\x00\x01':
-                            break
-                        else:
-                            next_start =\
-                                ((buffer[1] & 0x0F) << 8 | buffer[2]) + 3
-                            buffer[:] = buffer[next_start:]
-                    except (IndexError, AttributeError):
-                        break
+                    yield from extract(PID, buffer)
                 buffer[:] = current
             elif not buffer:
                 continue
             else:
                 buffer.extend(current)
 
-        # 残ったバッファを片付ける
-        for PID, buffer in buf.items():
-            if buffer and buffer[0] in table_ids:
-                section = target_ids[(PID, buffer[0])](buffer[:])
-                if section.isfull():
-                    section._pid = PID
-                    yield section
+            # このパケットで完成したセクションを返す
+            yield from extract(PID, buffer)
 
     tables = sections
 
@@ -444,7 +458,7 @@ class SynchronizedPacketizedElementaryStream(Section):
         """section_length などで指定された分以上の
         パケットを持っているかどうかを返す"""
 
-        return self.PES_packet_length <= len(self) + 3
+        return self.PES_packet_length + 6 <= len(self)
 
 
 def raw_dump(packet):

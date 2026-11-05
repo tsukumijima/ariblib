@@ -50,7 +50,7 @@ class Section(Syntax):
         """section_length などで指定された分以上の
         パケットを持っているかどうかを返す"""
 
-        return self.section_length <= len(self) + 3
+        return self.section_length + 3 <= len(self)
 
     def on(self, Descriptor):
         """記述子ごとにコールバック関数を設定する
