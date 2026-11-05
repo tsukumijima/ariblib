@@ -87,7 +87,7 @@ class Syntax(metaclass=SyntaxType):
 
         # 親が与えられている場合は親のプロパティも参照する
         if (
-            self._parent and
+            self._parent is not None and
             any(mnemonic.name == name for mnemonic in self._parent._mnemonics)
         ):
             return getattr(self._parent, name)

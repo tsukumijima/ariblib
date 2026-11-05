@@ -753,7 +753,8 @@ class EventGroupDescriptor(Descriptor):
 
     @case(lambda self: self.group_type in (4, 5))
     class with_network(Syntax):
-        @times(lambda self: self.event_count)
+        # 他のネットワークのイベントは、event_count とは無関係に、記述子の残りの長さの分だけ続く
+        @loop(lambda self: self.descriptor_length - 1 - self.event_count * 4)
         class networks(Syntax):
             original_network_id = uimsbf(16)
             transport_stream_id = uimsbf(16)
