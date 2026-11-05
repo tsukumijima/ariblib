@@ -81,6 +81,7 @@ class CopyrightDescriptor(Descriptor):
 
     """著作権記述子 (ISO 13818-1 2.6.24)"""
 
+    descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     copyright_identifier = uimsbf(32)
     additional_copyright_info = bslbf(lambda self: self.descriptor_length - 4)
