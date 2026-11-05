@@ -50,7 +50,8 @@ class TransportStreamFile(BufferedReader):
                 range(packet_size, buffer_size + 1, packet_size)
             ):
                 next = packet[start:stop]
-                if not next:
+                # ファイルの終端で途中で切れたパケットは、不完全なので読み飛ばす
+                if len(next) < packet_size:
                     return
                 yield next
 
