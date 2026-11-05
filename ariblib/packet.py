@@ -483,6 +483,13 @@ class SynchronizedPacketizedElementaryStream(Section):
                     class patterns(Syntax):
                         pattern_data = raw(16)
 
+        @case(lambda self: self.data_unit_parameter not in (0x20, 0x30))
+        class other_unit(Syntax):
+            """文字・DRCS 以外のデータユニットは、data_unit_size の分だけ読み飛ばす"""
+
+            data_unit_size = uimsbf(24)
+            data_unit_data = raw(data_unit_size)
+
     @property
     def pts(self):
         pts = (self.PTS_1 << 30) | (self.PTS_2 << 15) | self.PTS_3
