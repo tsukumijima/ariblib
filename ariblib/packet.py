@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import timedelta
 from io import BufferedReader, FileIO
 from itertools import chain
+import zlib
 
 from ariblib.mnemonics import (
     bcdtime,
@@ -16,6 +17,9 @@ from ariblib.mnemonics import (
 )
 from ariblib.sections import Section
 from ariblib.syntax import Syntax
+
+# MPEG-2 の CRC を zlib.crc32() で計算するために、1バイトごとにビットを反転させる変換表
+BIT_REVERSE_TABLE = bytes(int(format(i, '08b')[::-1], 2) for i in range(256))
 
 """
 パケット層の定義
@@ -73,11 +77,17 @@ class TransportStreamFile(BufferedReader):
         """パケットストリームから指定のセクションを返す"""
 
         buf = defaultdict(bytearray)
+        # PID ごとの直前の continuity_counter
+        last_counters = dict()
 
         target_pids =\
             set(chain.from_iterable(Section._pids for Section in Sections))
         target_ids = dict()
+        # CRC_32 を持つセクションは、CRC が正しいものだけを返す
+        crc_sections = set()
         for Section in Sections:
+            if any('CRC_32' in vars(cls) for cls in Section.__mro__):
+                crc_sections.add(Section)
             for PID in Section._pids:
                 for table_id in Section._table_ids:
                     target_ids[(PID, table_id)] = Section
@@ -110,6 +120,11 @@ class TransportStreamFile(BufferedReader):
                 Section = target_ids.get((PID, unit[0]))
                 if Section is None:
                     continue
+                # CRC_32 まで含めて計算した MPEG-2 の CRC は、正しければ 0 になる
+                # zlib.crc32() は反転した多項式の CRC なので、ビットを反転した入力の結果が 0xFFFFFFFF になるかで判定する
+                if Section in crc_sections and\
+                        zlib.crc32(unit.translate(BIT_REVERSE_TABLE)) != 0xFFFFFFFF:
+                    continue
                 section = Section(unit)
                 section._pid = PID
                 yield section
@@ -120,6 +135,28 @@ class TransportStreamFile(BufferedReader):
                 continue
 
             buffer = buf[PID]
+
+            # 誤りを含むパケットは、そのパケットを捨てて組み立て中のデータも捨てる
+            if transport_error_indicator(packet):
+                buffer.clear()
+                continue
+
+            # continuity_counter が連続していなければパケットが欠落しているので、組み立て中のデータを捨てる
+            # 同じ値が続くパケットは重複して送られたパケットなので無視する (ISO/IEC 13818-1 2.4.3.3)
+            # discontinuity_indicator が立っているパケットの不連続は意図されたものなので、データを捨てない
+            if has_payload(packet):
+                counter = continuity_counter(packet)
+                last_counter = last_counters.get(PID)
+                last_counters[PID] = counter
+                if last_counter is not None:
+                    if counter == last_counter:
+                        continue
+                    discontinuity =\
+                        has_adaptation(packet) and packet[4] > 0 and\
+                        packet[5] & 0x80
+                    if counter != (last_counter + 1) & 0x0F and\
+                            not discontinuity:
+                        buffer.clear()
 
             prev, current = payload(packet)
             if payload_unit_start_indicator(packet):
