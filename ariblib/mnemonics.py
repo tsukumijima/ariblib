@@ -162,23 +162,20 @@ class bcdtime(mnemonic):
 
 class otm(mnemonic):
 
-    """オフセット時刻。二進化十進数で表現された時・分・秒・ミリ秒"""
+    """オフセット時刻。二進化十進数で表現された時・分・秒・ミリ秒 (9桁の BCD と 4 ビットの予約)"""
 
     @cache
     def __get__(self, instance, owner):
         start = self.start(instance)
         block = start // 8
-        last = block + 3
-        bcd = map(ord, instance._packet[block:last])
-        msec = map(ord, instance._packet[last:])
+        hour, minute, second = map(bcd2int, instance._packet[block:block + 3])
         millisecond = (
-            ((msec[0] & 0xF0) >> 4) * 100 +
-            ((msec[0] & 0x0F) * 10) +
-            ((msec[1] & 0x0F) >> 4)
+            ((instance._packet[block + 3] & 0xF0) >> 4) * 100 +
+            (instance._packet[block + 3] & 0x0F) * 10 +
+            ((instance._packet[block + 4] & 0xF0) >> 4)
         )
-        hour, minute, second = map(bcd2int, bcd)
         return timedelta(hours=hour, minutes=minute, seconds=second,
-                         microseconds=millisecond)
+                         milliseconds=millisecond)
 
 
 class aribstr(mnemonic):

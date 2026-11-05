@@ -5,7 +5,6 @@ from itertools import chain
 import zlib
 
 from ariblib.mnemonics import (
-    bcdtime,
     bslbf,
     case,
     char,
@@ -443,7 +442,7 @@ class SynchronizedPacketizedElementaryStream(Section):
 
         @case(lambda self: self.TMD in (0b01, 0b10))
         class with_STM(Syntax):
-            STM = bcdtime(40)
+            STM = otm(40)
 
     data_unit_loop_length = uimsbf(24)
 
