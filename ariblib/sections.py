@@ -580,26 +580,36 @@ class PartialContentAnnouncementSection(Section):
     reserved_future_use_1 = bslbf(1)
     reserved_1 = bslbf(2)
     section_length = uimsbf(12)
-    event_relation_id = uimsbf(16)
+    service_id = uimsbf(16)
     reserved_2 = bslbf(2)
     version_number = uimsbf(5)
     current_next_indicator = bslbf(1)
     section_number = uimsbf(8)
     last_section_number = uimsbf(8)
-    information_provider_id = uimsbf(16)
-    relation_type = uimsbf(4)
-    reserved_future_use_2 = uimsbf(4)
+    transport_stream_id = uimsbf(16)
+    original_network_id = uimsbf(16)
+    content_id = uimsbf(32)
+    num_of_content_version = uimsbf(8)
 
-    @loop(lambda self: self.section_length - 10)
-    class relations(Syntax):
-        node_id = uimsbf(16)
-        collection_mode = uimsbf(4)
-        reserved_future_use_1 = bslbf(4)
-        parent_node_id = uimsbf(16)
-        reference_number = uimsbf(8)
+    @times(num_of_content_version)
+    class content_versions(Syntax):
+        content_version = uimsbf(16)
+        content_minor_version = uimsbf(16)
+        version_indicator = bslbf(2)
+        reserved_future_use_1 = bslbf(2)
+        content_descriptor_length = uimsbf(12)
         reserved_future_use_2 = bslbf(4)
-        descriptors_loop_length = uimsbf(12)
-        descriptors = descriptors(descriptors_loop_length)
+        schedule_description_length = uimsbf(12)
+
+        @loop(schedule_description_length)
+        class schedules(Syntax):
+            start_time = mjd(40)
+            duration = bcdtime(24)
+
+        descriptors = descriptors(lambda self: (
+            self.content_descriptor_length -
+            self.schedule_description_length
+        ))
 
     CRC_32 = rpchof(32)
 
