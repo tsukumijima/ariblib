@@ -93,6 +93,22 @@ ARIB_HIRAGANA_MAP.update(ARIB_BASE)
 # 文字符号集合に未定義の区点を表す文字 (EDCB と同じ 〓)
 UNDEFINED_CHAR = '\u3013'
 
+# 制御符号の後ろに付くパラメータのバイト数 (ARIB STD-B24 第一編 第2部 表 7-14 以降)
+# C0: PAPF (P1)・APS (P1, P2) / C1: SZX・COL・FLC・CDC・POL・WMM・HLC・RPC の P1 (1バイト)
+# CSI は長さが可変なので do_control() で個別に読み飛ばす
+CONTROL_PARAMETER_SIZE = {
+    0x16: 1,  # PAPF
+    0x1C: 2,  # APS
+    0x8B: 1,  # SZX
+    0x90: 1,  # COL (P1 が 0x20 のときは P2 がさらに続く)
+    0x91: 1,  # FLC
+    0x92: 1,  # CDC (P1 が 0x20 のときは P2 がさらに続く)
+    0x93: 1,  # POL
+    0x94: 1,  # WMM
+    0x97: 1,  # HLC
+    0x98: 1,  # RPC
+}
+
 
 class Buffer:
     G0, G1, G2, G3 = range(4)
@@ -310,6 +326,20 @@ class AribString:
             self.control.invoke(Buffer.G3, CodeArea.LEFT, False)  # SS3
         elif data == 0x1B:
             self.control.esc_seq_count = 1
+        elif data in CONTROL_PARAMETER_SIZE:
+            # 制御符号に続くパラメータは文字符号ではないので、文字として解釈せずに読み飛ばす
+            for _ in range(CONTROL_PARAMETER_SIZE[data]):
+                parameter = self.arib_array.pop0()
+            # COL・CDC は P1 が 0x20 のとき P2 がさらに 1 バイト続く
+            if data in (0x90, 0x92) and parameter == 0x20:
+                self.arib_array.pop0()
+        elif data == 0x9B:
+            # CSI は、パラメータ (0x30-0x3F)・中間文字 (0x20-0x2F)・終端文字 (0x40-0x7F) の順に続く
+            # いずれも文字符号ではないので、終端文字までを読み飛ばす
+            while self.arib_array and 0x20 <= self.arib_array[0] <= 0x3F:
+                self.arib_array.pop0()
+            if self.arib_array and 0x40 <= self.arib_array[0] <= 0x7F:
+                self.arib_array.pop0()
 
     def do_escape(self, data):
         if self.control.esc_seq_count == 1:
