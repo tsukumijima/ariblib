@@ -112,20 +112,33 @@ class Event(object):
                                 [nibble.content_nibble_level_2])
                 self.user_nibble.append(nibble.user_nibble)
                 self.user_genre.append(USER_TYPE.get(nibble.user_nibble, ''))
-        detail = [('', [])]
+        # (項目名, 本文のバイト列のリスト) のリスト
+        detail = []
         for eed in desc.get(ExtendedEventDescriptor, []):
             for item in eed.items:
-                key = str(item.item_description_char)
-                # 項目名が空の場合のみ、本文をバイナリレベルで一つ前のものにつなげてからデコードする
+                # 項目名の長さが 0 の項目は、本文をバイナリレベルで一つ前のものにつなげてからデコードする
+                # マルチバイト文字や ESC シーケンスの途中で記述子が分かれていても、つなげれば正しくデコードできる
                 # ref: ARIB TR-B14 第四分冊 第四編 第1部 4.4.3
-                if key == '':
-                    detail[-1][1].extend(item.item_char)
-                else:
-                    # 項目名が重複する場合はタブ文字を追加して区別する
-                    while key in dict(detail):
-                        key += '\t'
-                    detail.append((key, item.item_char))
-        detail = [(key, AribString(value)) for key, value in detail[1:]]
+                if item.item_description_length == 0:
+                    if detail:
+                        detail[-1][1][-1].extend(item.item_char)
+                    continue
+                key = str(item.item_description_char)
+                # 項目名の長さが 0 でない項目は、文字符号の指示・呼び出しを初期状態に戻してからデコードする
+                # (前の項目が LS1 などで終わっていても影響しない)
+                # 項目名が空白だけの項目 (WOWOW など) は、一つ前の項目の本文に別の断片として追加する
+                if key == '' and detail:
+                    detail[-1][1].append(bytearray(item.item_char))
+                    continue
+                # 項目名が重複する場合はタブ文字を追加して区別する
+                while key in dict(detail):
+                    key += '\t'
+                detail.append((key, [bytearray(item.item_char)]))
+        # 断片の間に、文字符号の指示と呼び出しを初期状態に戻す符号列を挟んで 1 つの AribString にする
+        # G0 に漢字 (ESC 0x24 0x42)・G1 に英数 (ESC 0x29 0x4A)・G2 に平仮名 (ESC 0x2A 0x30)・G3 に片仮名 (ESC 0x2B 0x31) を指示し、
+        # GL に G0 (LS0)・GR に G2 (LS2R) を呼び出す
+        reset_code_set = bytearray(b'\x1b\x24\x42\x1b\x29\x4a\x1b\x2a\x30\x1b\x2b\x31\x0f\x1b\x7d')
+        detail = [(key, AribString(reset_code_set.join(chunks))) for key, chunks in detail]
         if detail:
             self.detail = dict(detail)
             self.longdesc = '\n'.join(
