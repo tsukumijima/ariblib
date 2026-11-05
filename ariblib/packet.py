@@ -218,13 +218,12 @@ class TransportStreamFile(BufferedReader):
                         return tsmap.elementary_PID
 
     def pcrs(self):
-        """adaptation filed にある PCR から求めた timedelta オブジェクトを返す
-
-        FIXME: PCR フラグでなく OPCR フラグが立っているときに、この関数は OPCR を返す
-        """
+        """adaptation filed にある PCR から求めた timedelta オブジェクトを返す"""
 
         for packet in self:
-            if has_adaptation(packet) and packet[4] and packet[5]:
+            # PCR_flag が立っていて、adaptation_field が PCR (6バイト) を含む長さを持っているときだけ
+            if has_adaptation(packet) and packet[4] >= 7 and\
+                    packet[5] & 0x10:
                 pcr = ((packet[6] << 25) | (packet[7] << 17) |
                        (packet[8] << 9) | (packet[9] << 1) |
                        ((packet[10] & 0x80) >> 7))
