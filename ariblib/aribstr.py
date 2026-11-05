@@ -90,9 +90,8 @@ ARIB_HIRAGANA_MAP.update(ARIB_BASE)
 # 、 22     、 22
 # ・ 26     ・ 26
 
-ESC_SEQ_ASCII = (0x1B, 0x28, 0x42)
-ESC_SEQ_ZENKAKU = (0x1B, 0x24, 0x42)
-ESC_SEQ_HANKAKU = (0x1B, 0x28, 0x49)
+# 文字符号集合に未定義の区点を表す文字 (EDCB と同じ 〓)
+UNDEFINED_CHAR = '\u3013'
 
 
 class Buffer:
@@ -173,7 +172,6 @@ class CodeSetController:
 
 
 class AribArray(bytearray):
-    esc_seq = None
 
     def pop0(self):
         try:
@@ -181,21 +179,11 @@ class AribArray(bytearray):
         except IndexError:
             raise AribIndexError
 
-    def append_str(self, esc_seq, *string):
-        if self.esc_seq != esc_seq:
-            self.extend(esc_seq)
-        self.esc_seq = esc_seq
-        if len(string) > 1:
-            self.extend(string)
-        else:
-            self.append(string[0])
-
 
 class AribString:
     def __init__(self, array):
         self.control = CodeSetController()
         self.arib_array = AribArray(array)
-        self.jis_array = AribArray()
         self.utf_buffer = io.StringIO()
         self.utf_buffer_symbol = io.StringIO()
         self.split_symbol = False
@@ -213,22 +201,19 @@ class AribString:
     def convert_utf_split(self):
         self.split_symbol = True
         self.convert()
-        self.flush_jis_array()
         return (self.utf_buffer.getvalue(), self.utf_buffer_symbol.getvalue())
 
     def convert_utf(self, with_gaiji=True):
         self.convert(with_gaiji)
-        self.flush_jis_array()
         return self.utf_buffer.getvalue()
 
-    def flush_jis_array(self):
-        if len(self.jis_array) > 0:
-            try:
-                uni = self.jis_array.decode('iso-2022-jp')
-            except UnicodeDecodeError:
-                uni = 'UnicodeDecodeError'
-            self.utf_buffer.write(uni)
-            self.jis_array = AribArray()
+    def write_euc(self, *euc_bytes):
+        # EUC-JIS-2004 (JIS X0213:2004 の面 1 は JIS X0208 の上位互換) として 1 文字をデコードして書き込む
+        # 文字符号集合に未定義の区点は、文字列全体を捨てずにその 1 文字だけを 〓 にする
+        try:
+            self.utf_buffer.write(bytes(euc_bytes).decode('euc_jis_2004'))
+        except UnicodeDecodeError:
+            self.utf_buffer.write(UNDEFINED_CHAR)
 
     def convert(self, with_gaiji=True):
         while True:
@@ -245,18 +230,18 @@ class AribString:
                             0xA0,   # space (arib)
                             0x09,  # HT
                     ):
-                        self.jis_array.append_str(ESC_SEQ_ASCII, 0x20)
+                        self.utf_buffer.write(' ')
                     elif data in (
                             0x0D,  # CR
                             0x0A,  # LF
                     ):
-                        self.jis_array.append_str(ESC_SEQ_ASCII, 0x0A)
+                        self.utf_buffer.write('\n')
                     else:
                          # Control Character
                         self.do_control(data)
             except AribIndexError:
                 break
-        return self.jis_array
+        return self.utf_buffer
 
     def do_convert(self, data, with_gaiji=True):
         code, size = self.control.get_current_code(data)
@@ -268,35 +253,40 @@ class AribString:
             char = char & 0x7F
             char2 = char2 & 0x7F
 
-        if code in (
-            Code.KANJI, Code.JIS_KANJI_PLANE_1, Code.JIS_KANJI_PLANE_2
-        ):
-            # 漢字コード出力
-            self.jis_array.append_str(ESC_SEQ_ZENKAKU, char, char2)
+        # 漢字系集合と追加記号集合は 84 区以下が同一で (表 7-4・表 7-10)、85 区以降だけが追加漢字・追加記号になる
+        # どちらの集合が指示されていても、84 区以下は漢字、85 区以降は外字として扱う
+        if code in (Code.KANJI, Code.ADDITIONAL_SYMBOLS):
+            if char >= 0x75:
+                code = Code.ADDITIONAL_SYMBOLS
+            else:
+                code = Code.KANJI
+
+        if code in (Code.KANJI, Code.JIS_KANJI_PLANE_1):
+            # 漢字コード出力 (JIS X0213:2004 の面 1 は 13 区などの JIS X0208 にない区も含む)
+            self.write_euc(char | 0x80, char2 | 0x80)
+        elif code == Code.JIS_KANJI_PLANE_2:
+            # JIS X0213:2004 の面 2 (EUC-JIS-2004 では 0x8F が前置される)
+            self.write_euc(0x8F, char | 0x80, char2 | 0x80)
         elif code in (Code.ALPHANUMERIC, Code.PROP_ALPHANUMERIC):
             # 英数字コード出力
-            self.jis_array.append_str(ESC_SEQ_ASCII, char)
+            self.utf_buffer.write(chr(char))
         elif code in (Code.HIRAGANA, Code.PROP_HIRAGANA):
             # ひらがなコード出力
             if char >= 0x77:
-                self.jis_array.append_str(
-                    ESC_SEQ_ZENKAKU, 0x21, ARIB_HIRAGANA_MAP[char])
+                self.write_euc(0xA1, ARIB_HIRAGANA_MAP[char] | 0x80)
             else:
-                self.jis_array.append_str(
-                    ESC_SEQ_ZENKAKU, 0x24, char)
+                self.write_euc(0xA4, char | 0x80)
         elif code in (Code.PROP_KATAKANA, Code.KATAKANA):
             # カタカナコード出力
             if char >= 0x77:
-                self.jis_array.append_str(
-                    ESC_SEQ_ZENKAKU, 0x21, ARIB_KATAKANA_MAP[char])
+                self.write_euc(0xA1, ARIB_KATAKANA_MAP[char] | 0x80)
             else:
-                self.jis_array.append_str(ESC_SEQ_ZENKAKU, 0x25, char)
+                self.write_euc(0xA5, char | 0x80)
         elif code == Code.JIS_X0201_KATAKANA:
-            # 半角カタカナコード出力
-            self.jis_array.append_str(ESC_SEQ_HANKAKU, char)
+            # 半角カタカナコード出力 (EUC-JIS-2004 では 0x8E が前置される)
+            self.write_euc(0x8E, char | 0x80)
         elif code == Code.ADDITIONAL_SYMBOLS:
             # 追加シンボル文字コード出力
-            self.flush_jis_array()
             if with_gaiji:
                 if self.split_symbol:
                     wchar = ((char << 8) + char2)
@@ -381,6 +371,6 @@ if __name__ == '__main__':
     arib = AribString(arr)
     arib.convert()
 
-    f = open("output.txt", mode='wb')
-    arib.jis_array.tofile(f)
+    f = open("output.txt", mode='w', encoding='utf-8')
+    f.write(arib.utf_buffer.getvalue())
     f.close()
