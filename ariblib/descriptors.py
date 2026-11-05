@@ -651,7 +651,7 @@ class ExtendedBroadcasterDescriptor(Descriptor):
 
         @times(number_of_broadcaster_id_loop)
         class broadcasters(Syntax):
-            original_network_id = uimsbf(8)
+            original_network_id = uimsbf(16)
             broadcaster_id = uimsbf(8)
 
         private_data_byte = bslbf(lambda self: (
@@ -673,7 +673,7 @@ class ExtendedBroadcasterDescriptor(Descriptor):
 
         @times(number_of_broadcaster_id_loop)
         class broadcasters(Syntax):
-            original_network_id = uimsbf(8)
+            original_network_id = uimsbf(16)
             broadcaster_id = uimsbf(8)
 
         private_data_byte = bslbf(lambda self: (
