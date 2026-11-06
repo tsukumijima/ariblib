@@ -172,7 +172,7 @@ class CodeSetController:
 
     def get_current_code(self, data: int) -> tuple[int, int] | None:
         if 0x21 <= data <= 0x7E:
-            if self.single_shift:
+            if self.single_shift is not None:
                 code = self.v_buffer[self.single_shift]
                 self.single_shift = None
                 return code
