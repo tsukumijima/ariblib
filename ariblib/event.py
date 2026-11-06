@@ -68,7 +68,6 @@ def events(
 
 
 class Event(object):
-
     """イベントラッパークラス"""
 
     from_eit = ['service_id', 'transport_stream_id', 'original_network_id']
@@ -152,33 +151,27 @@ class Event(object):
         for cd in desc.get(ComponentDescriptor, []):
             self.video_content = cd.stream_content
             self.video_component = cd.component_type
-            self.video = component_type_string(
-                cd.stream_content, cd.component_type)
+            self.video = component_type_string(cd.stream_content, cd.component_type)
             self.video_text = cd.component_text
         for dccd in desc.get(DigitalCopyControlDescriptor, []):
             self.copy_control_type = dccd.copy_control_type
-            self.digital_recording_control_data =\
-                dccd.digital_recording_control_data
-            self.copy = DIGITAL_RECORDING_CONTROL_TYPE[
-                dccd.digital_recording_control_data]
+            self.digital_recording_control_data = dccd.digital_recording_control_data
+            self.copy = DIGITAL_RECORDING_CONTROL_TYPE[dccd.digital_recording_control_data]
         for acd in desc.get(AudioComponentDescriptor, []):
             if acd.main_component_flag:
                 self.audio_content = acd.stream_content
                 self.audio_component = acd.component_type
                 self.samplint_rate_type = acd.sampling_rate
-                self.audio = component_type_string(
-                    acd.stream_content, acd.component_type)
+                self.audio = component_type_string(acd.stream_content, acd.component_type)
                 self.sampling_rate = acd.sampling_rate
                 self.sampling_rate_string = SAMPLING_RATE[acd.sampling_rate]
                 self.audio_text = acd.audio_text
             else:
                 self.second_audio_content = acd.stream_content
                 self.second_audio_component = acd.component_type
-                self.second_audio = component_type_string(
-                    acd.stream_content, acd.component_type)
+                self.second_audio = component_type_string(acd.stream_content, acd.component_type)
                 self.second_sampling_rate = acd.sampling_rate
-                self.second_sampling_rate_string =\
-                    SAMPLING_RATE[acd.sampling_rate]
+                self.second_sampling_rate_string = SAMPLING_RATE[acd.sampling_rate]
                 self.second_audio_text = acd.audio_text
         for egd in desc.get(EventGroupDescriptor, []):
             self.group_type = egd.group_type
@@ -192,15 +185,10 @@ class Event(object):
             self.subgenre = []
             self.user_genre = []
             for nibble in ctd.nibbles:
-                self.nibble1.append(
-                    nibble.content_nibble_level_1)
-                self.nibble2.append(
-                    nibble.content_nibble_level_2)
-                self.genre.append(
-                    CONTENT_TYPE[nibble.content_nibble_level_1][0])
-                self.subgenre.append(
-                    CONTENT_TYPE[nibble.content_nibble_level_1][1]
-                                [nibble.content_nibble_level_2])
+                self.nibble1.append(nibble.content_nibble_level_1)
+                self.nibble2.append(nibble.content_nibble_level_2)
+                self.genre.append(CONTENT_TYPE[nibble.content_nibble_level_1][0])
+                self.subgenre.append(CONTENT_TYPE[nibble.content_nibble_level_1][1][nibble.content_nibble_level_2])
                 self.user_nibble.append(nibble.user_nibble)
                 self.user_genre.append(USER_TYPE.get(nibble.user_nibble, ''))
         # (項目名, 本文のバイト列のリスト) のリスト
@@ -242,9 +230,7 @@ class Event(object):
         detail = joined_detail
         if detail:
             self.detail = dict(detail)
-            self.longdesc = '\n'.join(
-                "{}\n{}\n".format(key, value) for key, value in detail)
-
+            self.longdesc = '\n'.join("{}\n{}\n".format(key, value) for key, value in detail)
 
     def _init_from_sit(self, service: Syntax) -> None:
         """SIT のサービスの記述子から、EIT から写す値と同じ値を設定する
@@ -286,6 +272,7 @@ class Event(object):
 if __name__ == '__main__':
     from subprocess import Popen, PIPE
     from ariblib import tsopen
+
     recpt1 = Popen(['recpt1', '236', '130', '-'], stdout=PIPE)
     # stdout=PIPE を指定したので stdout は必ず存在する
     assert recpt1.stdout is not None

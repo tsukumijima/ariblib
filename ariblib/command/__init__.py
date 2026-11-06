@@ -18,8 +18,7 @@ def add_parsers(parser: ArgumentParser) -> None:
         root, ext = os.path.splitext(name)
         if root == '__init__' or ext != '.py':
             continue
-        module = importlib.import_module('.'.join((
-            'ariblib', 'command', root)))
+        module = importlib.import_module('.'.join(('ariblib', 'command', root)))
         try:
             getattr(module, 'add_parser')(sub_parsers)
         except AttributeError:

@@ -34,6 +34,7 @@ mapping: dict[str, str] = {}
 # DRCSイメージ保存ディレクトリが存在しない場合は作成する
 if not os.path.isdir(save_dir):
     import os
+
     os.makedirs(save_dir)
 
 for path in (mapping_path, user_mapping_path):
@@ -49,7 +50,6 @@ for path in (mapping_path, user_mapping_path):
 
 
 class DRCSImage(object):
-
     """DRCSの画像イメージ"""
 
     def __init__(self, width: int, height: int, bgcolor: str = 'white') -> None:
@@ -62,10 +62,7 @@ class DRCSImage(object):
         for y, pattern in enumerate(patterns):
             pattern_data = pattern.pattern_data
             hasher.update(pattern_data)
-            points = [
-                (x, y)
-                for x, dot in enumerate(_to_bit(pattern_data)) if dot == '1'
-            ]
+            points = [(x, y) for x, dot in enumerate(_to_bit(pattern_data)) if dot == '1']
             draw.point(points, color)
         self.hash = hasher.hexdigest()
 
@@ -78,7 +75,6 @@ class DRCSImage(object):
 
 
 class DRCSText(object):
-
     """DRCSのテキストイメージ"""
 
     def __init__(self, width: int, height: int, bgcolor: str = 'white') -> None:
@@ -107,6 +103,7 @@ def _to_bit(raw: Iterable[int]) -> str:
     """bytearrayを0,1のビットを表す文字列に変換する"""
 
     return ''.join(map(lambda s: format(s, '08b'), raw))
+
 
 # 画像出力ができないときはテキスト出力を行う
 # 実行時にクラスを差し替えるため、型検査では DRCSText を DRCSImage と同じ使い方 (生成・point()・hash・save()) ができるクラスとして扱う

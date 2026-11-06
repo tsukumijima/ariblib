@@ -36,7 +36,7 @@ def vtt(args: Namespace) -> None:
 
         number = 1
         base_date = datetime(2000, 1, 1)
-        #fixme: DRCS処理を隠蔽して字幕文字オブジェクトだけ返すラッパークラスが必要
+        # fixme: DRCS処理を隠蔽して字幕文字オブジェクトだけ返すラッパークラスが必要
         # for caption in ts.captions(drcs=True, color=True):
         #     print(caption.datetime, caption.body) みたいな
         prev_caption_date: datetime | None = None
@@ -50,12 +50,16 @@ def vtt(args: Namespace) -> None:
                 if data.data_unit_parameter == 0x20:
                     caption = WebVTTCProfileString(data.data_unit_data)
                     if prev_caption_date:
-                        out.write('{}\n{}.{:03d} --> {}.{:03d}\n{}\n\n'.format(
-                            number, prev_caption_date.strftime('%H:%M:%S'),
-                            prev_caption_date.microsecond // 1000,
-                            caption_date.strftime('%H:%M:%S'),
-                            caption_date.microsecond // 1000,
-                            prev_caption))
+                        out.write(
+                            '{}\n{}.{:03d} --> {}.{:03d}\n{}\n\n'.format(
+                                number,
+                                prev_caption_date.strftime('%H:%M:%S'),
+                                prev_caption_date.microsecond // 1000,
+                                caption_date.strftime('%H:%M:%S'),
+                                caption_date.microsecond // 1000,
+                                prev_caption,
+                            )
+                        )
                         # cue の番号は、書き出した cue ごとに1から順に振る
                         number += 1
                     prev_caption_date = caption_date
@@ -63,12 +67,16 @@ def vtt(args: Namespace) -> None:
         if prev_caption:
             # prev_caption と同時に設定するので、prev_caption_date も必ず設定されている
             assert prev_caption_date is not None
-            out.write('{}\n{}.{:03d} --> {}.{:03d}\n{}\n\n'.format(
-                number, prev_caption_date.strftime('%H:%M:%S'),
-                prev_caption_date.microsecond // 1000,
-                caption_date.strftime('%H:%M:%S'),
-                caption_date.microsecond // 1000,
-                prev_caption))
+            out.write(
+                '{}\n{}.{:03d} --> {}.{:03d}\n{}\n\n'.format(
+                    number,
+                    prev_caption_date.strftime('%H:%M:%S'),
+                    prev_caption_date.microsecond // 1000,
+                    caption_date.strftime('%H:%M:%S'),
+                    caption_date.microsecond // 1000,
+                    prev_caption,
+                )
+            )
 
 
 def add_parser(parsers: '_SubParsersAction[ArgumentParser]') -> None:

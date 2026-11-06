@@ -20,7 +20,7 @@ def crc32(data: Iterable[int]) -> int:
         c = 1 if crc & 0x80000000 else 0
         crc <<= 1
         if c ^ bit:
-            crc ^= 0x04c11db7
+            crc ^= 0x04C11DB7
         crc &= 0xFFFFFFFF
     return crc
 
@@ -49,8 +49,7 @@ def split(args: Namespace) -> None:
         pmt = next(ts.sections(ProgramMapSection, pids=[remained_pmt_pid]))
         # PCRと最初のストリームのPIDを残す
         remained_pids.add(pmt.PCR_PID)
-        remained_pids.update(pmt_map.elementary_PID for pmt_map in pmt.maps
-                             if pmt_map.stream_type != 0x0d)
+        remained_pids.update(pmt_map.elementary_PID for pmt_map in pmt.maps if pmt_map.stream_type != 0x0D)
 
     pat_pid = ProgramAssociationSection._pids[0]
     with tsopen(args.inpath) as ts, open(args.outpath, mode='wb') as out:

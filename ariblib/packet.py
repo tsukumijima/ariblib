@@ -43,7 +43,6 @@ BIT_REVERSE_TABLE = bytes(int(format(i, '08b')[::-1], 2) for i in range(256))
 
 
 class TransportStreamFile(BufferedReader):
-
     """TSファイル"""
 
     # TS パケットのバイト数と、BDAV の録画 (.m2ts) の TP_extra_header 付きのパケットのバイト数
@@ -86,9 +85,12 @@ class TransportStreamFile(BufferedReader):
             int: 192 バイトのパケットと判定したときは 192、それ以外は 188
         """
 
-        if len(head) >= cls.M2TS_PACKET_SIZE * 2 and\
-                not (head[0] == 0x47 and head[cls.PACKET_SIZE] == 0x47) and\
-                head[4] == 0x47 and head[cls.M2TS_PACKET_SIZE + 4] == 0x47:
+        if (
+            len(head) >= cls.M2TS_PACKET_SIZE * 2
+            and not (head[0] == 0x47 and head[cls.PACKET_SIZE] == 0x47)
+            and head[4] == 0x47
+            and head[cls.M2TS_PACKET_SIZE + 4] == 0x47
+        ):
             return cls.M2TS_PACKET_SIZE
         return cls.PACKET_SIZE
 
@@ -123,7 +125,7 @@ class TransportStreamFile(BufferedReader):
         packets = iter(read_chunk, b'')
         for packet in packets:
             for start in range(0, len(packet), packet_size):
-                next = packet[start + header_size:start + packet_size]
+                next = packet[start + header_size : start + packet_size]
                 # ファイルの終端で途中で切れたパケットは、不完全なので読み飛ばす
                 if len(next) < self.PACKET_SIZE:
                     return
@@ -132,10 +134,10 @@ class TransportStreamFile(BufferedReader):
     def __next__(self) -> bytes:
         # シークできない入力は、判定のために先に読んだデータから順に返す
         self._detect_unseekable_packet_size()
-        packet = self._head[:self.packet_size]
-        self._head = self._head[self.packet_size:]
+        packet = self._head[: self.packet_size]
+        self._head = self._head[self.packet_size :]
         packet += self.read(self.packet_size - len(packet))
-        return packet[self.packet_size - self.PACKET_SIZE:]
+        return packet[self.packet_size - self.PACKET_SIZE :]
 
     def on(self, Section: type[Section]) -> Callable[[SectionCallback], None]:
         """セクションごとにコールバック関数を設定する
@@ -144,6 +146,7 @@ class TransportStreamFile(BufferedReader):
 
         def attach_callback(callback: SectionCallback) -> None:
             self._callbacks[Section] = callback
+
         return attach_callback
 
     def execute(self) -> None:
@@ -222,8 +225,7 @@ class TransportStreamFile(BufferedReader):
                     continue
                 # CRC_32 まで含めて計算した MPEG-2 の CRC は、正しければ 0 になる
                 # zlib.crc32() は反転した多項式の CRC なので、ビットを反転した入力の結果が 0xFFFFFFFF になるかで判定する
-                if Section in crc_sections and\
-                        zlib.crc32(unit.translate(BIT_REVERSE_TABLE)) != 0xFFFFFFFF:
+                if Section in crc_sections and zlib.crc32(unit.translate(BIT_REVERSE_TABLE)) != 0xFFFFFFFF:
                     continue
                 section = Section(unit)
                 section._pid = PID
@@ -234,9 +236,13 @@ class TransportStreamFile(BufferedReader):
             # PCR は取り出す対象ではない PID (PCR_PID) で運ばれるため、PID で絞り込む前に記録する
             # PCR_flag が立っていて、adaptation_field が PCR (6バイト) を含む長さを持っているときだけ
             if has_adaptation(packet) and packet[4] >= 7 and packet[5] & 0x10:
-                last_pcr = ((packet[6] << 25) | (packet[7] << 17) |
-                            (packet[8] << 9) | (packet[9] << 1) |
-                            ((packet[10] & 0x80) >> 7))
+                last_pcr = (
+                    (packet[6] << 25)
+                    | (packet[7] << 17)
+                    | (packet[8] << 9)
+                    | (packet[9] << 1)
+                    | ((packet[10] & 0x80) >> 7)
+                )
 
             PID = pid(packet)
             if PID not in target_pids:
@@ -256,9 +262,7 @@ class TransportStreamFile(BufferedReader):
                 counter = continuity_counter(packet)
                 last_counter = last_counters.get(PID)
                 last_counters[PID] = counter
-                discontinuity =\
-                    has_adaptation(packet) and packet[4] > 0 and\
-                    packet[5] & 0x80
+                discontinuity = has_adaptation(packet) and packet[4] > 0 and packet[5] & 0x80
                 if last_counter is not None and not discontinuity:
                     if counter == last_counter:
                         continue
@@ -305,8 +309,7 @@ class TransportStreamFile(BufferedReader):
             for tsmap in pmt.maps:
                 if tsmap.stream_type != 0x06:
                     continue
-                for si in tsmap.descriptors.get(StreamIdentifierDescriptor,
-                                                []):
+                for si in tsmap.descriptors.get(StreamIdentifierDescriptor, []):
                     if si.component_tag == 0x87:
                         return tsmap.elementary_PID
 
@@ -326,8 +329,7 @@ class TransportStreamFile(BufferedReader):
             self.seek(0)
         for pmt in self.sections(ProgramMapSection, pids=pat.pmt_pids):
             for tsmap in pmt.maps:
-                for vdc in tsmap.descriptors.get(VideoDecodeControlDescriptor,
-                                                 []):
+                for vdc in tsmap.descriptors.get(VideoDecodeControlDescriptor, []):
                     if vdc.video_encode_format == video_encode_format:
                         return tsmap.elementary_PID
 
@@ -336,11 +338,14 @@ class TransportStreamFile(BufferedReader):
 
         for packet in self:
             # PCR_flag が立っていて、adaptation_field が PCR (6バイト) を含む長さを持っているときだけ
-            if has_adaptation(packet) and packet[4] >= 7 and\
-                    packet[5] & 0x10:
-                pcr = ((packet[6] << 25) | (packet[7] << 17) |
-                       (packet[8] << 9) | (packet[9] << 1) |
-                       ((packet[10] & 0x80) >> 7))
+            if has_adaptation(packet) and packet[4] >= 7 and packet[5] & 0x10:
+                pcr = (
+                    (packet[6] << 25)
+                    | (packet[7] << 17)
+                    | (packet[8] << 9)
+                    | (packet[9] << 1)
+                    | ((packet[10] & 0x80) >> 7)
+                )
                 yield timedelta(seconds=pcr / 90000)
 
 
@@ -425,7 +430,7 @@ def payload(packet: bytes | bytearray) -> tuple[bytes | bytearray, bytes | bytea
     if not payload_unit_start_indicator(packet):
         return (b'', packet[start:])
 
-    packet_start_code_prefix = packet[start:start + 3]
+    packet_start_code_prefix = packet[start : start + 3]
     if packet_start_code_prefix == b'\x00\x00\x01':
         return (b'', packet[start:])
 
@@ -436,7 +441,6 @@ def payload(packet: bytes | bytearray) -> tuple[bytes | bytearray, bytes | bytea
 
 
 class AdaptationField(Syntax):
-
     """ISO/IEC 13818-1 2.4.3.5"""
 
     adaptation_field_length = uimsbf(8)
@@ -472,7 +476,6 @@ class AdaptationField(Syntax):
 
 
 class SynchronizedPacketizedElementaryStream(Section):
-
     """ISO/IEC 13818-1 2.4.3.7
 
     FIXME: 字幕 PES パケット専用の実装になっている
@@ -604,7 +607,9 @@ class SynchronizedPacketizedElementaryStream(Section):
             # width・depth によっては読んだ長さが data_unit_size より短くなる
             # 続くデータユニット (字幕本文など) の位置がずれないように、data_unit_size に満たない残りを読み飛ばす
             # (data_unit_size は number_of_code 以降のバイト数。ARIB-STD-B24-1-3-9.4 表9-11)
-            remaining_data = raw(lambda self: max(self.data_unit_size - 1 - sum(len(code) for code in self.codes) // 8, 0))
+            remaining_data = raw(
+                lambda self: max(self.data_unit_size - 1 - sum(len(code) for code in self.codes) // 8, 0)
+            )
 
         @case(lambda self: self.data_unit_parameter not in (0x20, 0x30))
         class other_unit(Syntax):

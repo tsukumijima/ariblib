@@ -33,7 +33,6 @@ if TYPE_CHECKING:
 
 
 class Section(Syntax):
-
     """セクションの親クラス
 
     PSI はこれの子クラスとする。字幕 PES も便宜的にそうする
@@ -62,8 +61,7 @@ class Section(Syntax):
 
         # Section からサブシンタックスを全て走査しても見つからなかった場合は
         # AttributeError を投げる
-        raise AttributeError("'{}' object has no attribute '{}'".format(
-            self.__class__.__name__, name))
+        raise AttributeError("'{}' object has no attribute '{}'".format(self.__class__.__name__, name))
 
     def __len__(self) -> int:
         return len(self._packet)
@@ -74,7 +72,9 @@ class Section(Syntax):
 
         return self.section_length + 3 <= len(self)
 
-    def on(self, Descriptor: type[Descriptor], descriptor_name: str = 'descriptors') -> Callable[[DescriptorCallback], None]:
+    def on(
+        self, Descriptor: type[Descriptor], descriptor_name: str = 'descriptors'
+    ) -> Callable[[DescriptorCallback], None]:
         """記述子ごとにコールバック関数を設定する
         いまのところ、一つの記述子についてコールバック関数は1つのみ定義できる
         セクションの記述子は常に descriptors にあるため、descriptor_name は Syntax.on() と呼び出し方を揃えるためだけに受け取る
@@ -82,6 +82,7 @@ class Section(Syntax):
 
         def attach_callback(callback: DescriptorCallback) -> None:
             self.callbacks[Descriptor] = callback
+
         return attach_callback
 
     def execute(self) -> None:
@@ -99,7 +100,6 @@ class Section(Syntax):
 
 
 class ProgramAssociationSection(Section):
-
     """Program Association Section PAT (ISO 13818-1 2.4.4.3)"""
 
     _pids = [0x00]
@@ -141,7 +141,6 @@ class ProgramAssociationSection(Section):
 
 
 class ProgramMapSection(Section):
-
     """Program Map Section PMT (ISO 13818-1 2.4.4.8)"""
 
     _table_ids = [0x02]
@@ -185,8 +184,10 @@ class ProgramMapSection(Section):
         """
         for stream in self.maps:
             try:
-                if stream.stream_type == 0x06 and\
-                        stream.descriptors[StreamIdentifierDescriptor][0].component_tag == 0x87:
+                if (
+                    stream.stream_type == 0x06
+                    and stream.descriptors[StreamIdentifierDescriptor][0].component_tag == 0x87
+                ):
                     return stream.elementary_PID
             except KeyError:
                 pass
@@ -222,7 +223,6 @@ class ProgramMapSection(Section):
 
 
 class ConditionalAccessSection(Section):
-
     """限定受信セクション CAT (ISO 13818-1 2.4.4.6)"""
 
     _pids = [0x01]
@@ -243,7 +243,6 @@ class ConditionalAccessSection(Section):
 
 
 class NetworkInformationSection(Section):
-
     """ネットワーク情報セクション NIT (ARIB-STD-B10-2-5.2.4)"""
 
     _pids = [0x10]
@@ -278,21 +277,18 @@ class NetworkInformationSection(Section):
 
 
 class ActualNetworkNetworkInformationSection(NetworkInformationSection):
-
     """自ネットワークNIT"""
 
     _table_ids = [0x40]
 
 
 class OtherNetworkNetworkInformationSection(NetworkInformationSection):
-
     """他ネットワークNIT"""
 
     _table_ids = [0x41]
 
 
 class ServiceDescriptionSection(Section):
-
     """サービス記述セクション SDT (ARIB-STD-B10-2-5.2.6)"""
 
     _pids = [0x11]
@@ -328,21 +324,18 @@ class ServiceDescriptionSection(Section):
 
 
 class ActualStreamServiceDescriptionSection(ServiceDescriptionSection):
-
     """自ストリームSDT"""
 
     _table_ids = [0x42]
 
 
 class OtherStreamServiceDescriptionSection(ServiceDescriptionSection):
-
     """他ストリームSDT"""
 
     _table_ids = [0x46]
 
 
 class BouquetAssociationSection(Section):
-
     """ブーケアソシエーションセクション BAT (ARIB-STD-B10-2-5.2.5)"""
 
     _pids = [0x11]
@@ -377,7 +370,6 @@ class BouquetAssociationSection(Section):
 
 
 class EventInformationSection(Section):
-
     """イベント情報セクション EIT (ARIB-STD-B10-2-5.2.7)"""
 
     _pids = [0x12, 0x26, 0x27]
@@ -413,42 +405,36 @@ class EventInformationSection(Section):
 
 
 class PresentFollowingEventInformationSection(EventInformationSection):
-
     """EIT[p/f]"""
 
     _table_ids = [0x4E, 0x4F]
 
 
 class ActualStreamEventInformationSection(EventInformationSection):
-
     """自ストリームEIT"""
 
     _table_ids = range(0x50, 0x60)
 
 
 class ActualStreamPresentFollowingEventInformationSection(ActualStreamEventInformationSection):
-
     """自ストリームEIT[p/f]"""
 
     _table_ids = [0x4E]
 
 
 class OtherStreamEventInformationSection(EventInformationSection):
-
     """他ストリームEIT"""
 
     _table_ids = range(0x60, 0x70)
 
 
 class OtherStreamPresentFollowingEventInformationSection(OtherStreamEventInformationSection):
-
     """他ストリームEIT[p/f]"""
 
     _table_ids = [0x4F]
 
 
 class RunningStatusSection(Section):
-
     """進行状態セクション RST (ARIB-STD-B10-2-5.2.10)"""
 
     _pids = [0x13]
@@ -471,7 +457,6 @@ class RunningStatusSection(Section):
 
 
 class TimeAndDateSection(Section):
-
     """時刻日付セクション TDT (ARIB-STD-B10-2-5.2.8)"""
 
     _pids = [0x14]
@@ -486,7 +471,6 @@ class TimeAndDateSection(Section):
 
 
 class TimeOffsetSection(Section):
-
     """時刻日付オフセットセクション TOT (ARIB-STD-B10-2-5.2.9)"""
 
     _pids = [0x14]
@@ -505,7 +489,6 @@ class TimeOffsetSection(Section):
 
 
 class LocalEventInformationSection(Section):
-
     """ローカルイベント情報セクション LIT (ARIB-STD-B10-2-5.1.1)"""
 
     _pids = [0x20]
@@ -537,7 +520,6 @@ class LocalEventInformationSection(Section):
 
 
 class EventRelationSection(Section):
-
     """イベント関係セクション ERT (ARIB-STD-B10-2-5.1.2)"""
 
     _pids = [0x21]
@@ -573,7 +555,6 @@ class EventRelationSection(Section):
 
 
 class IndexTransmissionSection(Section):
-
     """番組インデックス送出情報セクション ITT (ARIB-STD-B10-2-5.1.3)"""
 
     _table_ids = [0xD2]
@@ -596,7 +577,6 @@ class IndexTransmissionSection(Section):
 
 
 class PartialContentAnnouncementSection(Section):
-
     """差分配信告知セクション PCAT (ARIB-STD-B10-2-5.2.12)"""
 
     _pids = [0x22]
@@ -633,16 +613,12 @@ class PartialContentAnnouncementSection(Section):
             start_time = mjd(40)
             duration = bcdtime(24)
 
-        descriptors = descriptors(lambda self: (
-            self.content_descriptor_length -
-            self.schedule_description_length
-        ))
+        descriptors = descriptors(lambda self: self.content_descriptor_length - self.schedule_description_length)
 
     CRC_32 = rpchof(32)
 
 
 class StuffingSection(Section):
-
     """スタッフセクション ST (ARIB-STD-B10-2.5.2.11)"""
 
     _table_ids = [0x72]
@@ -659,7 +635,6 @@ class StuffingSection(Section):
 
 
 class BroadcasterInformationSection(Section):
-
     """ブロードキャスタ情報セクション BIT (ARIB-STD-B10-2-5.2.13)"""
 
     _pids = [0x24]
@@ -681,9 +656,7 @@ class BroadcasterInformationSection(Section):
     first_descriptors_length = uimsbf(12)
     descriptors = descriptors(first_descriptors_length)
 
-    @loop(lambda self: (
-        self.section_length - (self.first_descriptors_length + 11)
-    ))
+    @loop(lambda self: self.section_length - (self.first_descriptors_length + 11))
     class broadcasters(Syntax):
         broadcaster_id = uimsbf(8)
         reserved_future_use = bslbf(4)
@@ -694,7 +667,6 @@ class BroadcasterInformationSection(Section):
 
 
 class NetworkBoardInformationSection(Section):
-
     """ネットワーク掲示板情報セクション NBIT (ARIB-STD-B10-2-5.14)
 
     FIXME: 未実装
@@ -706,7 +678,6 @@ class NetworkBoardInformationSection(Section):
 
 
 class CommonDataSection(Section):
-
     """全受信機共通データセクション CDT (ARIB-STD-B21-12.2.2.2)"""
 
     _pids = [0x29]
@@ -742,7 +713,6 @@ class CommonDataSection(Section):
 
 
 class LinkedDescriptionSection(Section):
-
     """リンク記述セクション LDT (ARIB-STD-B10-2-5.2.15)"""
 
     _pids = [0x25]
@@ -773,7 +743,6 @@ class LinkedDescriptionSection(Section):
 
 
 class EntitlementControlMessage(Section):
-
     """ARIB-STD-B1, B21
 
     FIXME: 未実装
@@ -783,7 +752,6 @@ class EntitlementControlMessage(Section):
 
 
 class SoftwareDownloadTriggerSection(Section):
-
     """ソフトウェアダウンロードトリガーセクション SDTT (ARIB-STD-B21-12.2.1.1)"""
 
     _pids = [0x23, 0x28]
@@ -823,15 +791,12 @@ class SoftwareDownloadTriggerSection(Section):
             start_time = mjd(40)
             duration = bcdtime(24)
 
-        descriptors = descriptors(lambda self: (
-            self.content_description_length - self.schedule_description_length
-        ))
+        descriptors = descriptors(lambda self: self.content_description_length - self.schedule_description_length)
 
     CRC_32 = rpchof(32)
 
 
 class SelectionInformationSection(Section):
-
     """選択情報セクション SIT (ARIB-STD-B21-9.1.8.2)
 
     パーシャルトランスポートストリーム (BD などに記録された1サービス分の TS) は、SIT 以外の SI を含まない
@@ -896,7 +861,6 @@ class SelectionInformationSection(Section):
 
 
 class DSMCCSection(Section):
-
     """ARIB-STD-B24-3-6.5
 
     FIXME: 実装中
@@ -937,6 +901,7 @@ class DSMCCSection(Section):
                 @loop(lambda self: self.adaptationLength - 1)
                 class adaptationDataBytes(Syntax):
                     adaptationDataByte = uimsbf(8)
+
         downloadId = uimsbf(32)
         blockSize = uimsbf(16)
         windowSize = uimsbf(8)
@@ -953,6 +918,7 @@ class DSMCCSection(Section):
             moduleVersion = uimsbf(8)
             moduleInfoLength = uimsbf(8)
             moduleDescriptors = diidescriptors(moduleInfoLength)
+
         privateDataLength = uimsbf(16)
 
         @loop(privateDataLength)
@@ -974,17 +940,17 @@ class DSMCCSection(Section):
             @case(lambda self: self.adaptationLength > 0)
             class dsmccAdaptationHeader(Syntax):
                 adaptationType = uimsbf(8)
-                adaptationDataBytes = raw(lambda self: self.adaptationLength-1)
+                adaptationDataBytes = raw(lambda self: self.adaptationLength - 1)
+
         moduleId = uimsbf(16)
         moduleVersion = uimsbf(8)
         reserved_2 = bslbf(8)
         blockNumber = uimsbf(16)
-        blockDataBytes = raw(lambda self: self.messageLength -
-                             self.adaptationLength - 6)  # 16 + 8 + 8 + 16 bits
+        blockDataBytes = raw(lambda self: self.messageLength - self.adaptationLength - 6)  # 16 + 8 + 8 + 16 bits
 
     @case(lambda self: self.table_id == 0x3E)
     class private_data_bytes(Syntax):
-        private_data_bytes = raw(lambda self: self.dsmcc_section_length-9)
+        private_data_bytes = raw(lambda self: self.dsmcc_section_length - 9)
 
     @case(lambda self: self.section_syntax_indicator == 0)
     class check_sum(Syntax):

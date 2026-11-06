@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 
 class SyntaxDict(dict[str, Any]):
-
     """シンタックスを記述する辞書クラス
 
     責務:
@@ -47,14 +46,12 @@ class SyntaxDict(dict[str, Any]):
         mnemonics = self.mnemonics[:]
 
         def start(instance: Syntax) -> int:
-            return sum(m.real_length(instance) for m in mnemonics) +\
-                instance._pos
+            return sum(m.real_length(instance) for m in mnemonics) + instance._pos
 
         return start
 
 
 class SyntaxType(type):
-
     """シンタックスのメタクラス
 
     SyntaxDict が生成したサブ情報を各インスタンスに付与する
@@ -77,7 +74,6 @@ class SyntaxType(type):
 
 
 class Syntax(metaclass=SyntaxType):
-
     """シンタックスの親クラス"""
 
     # メタクラスが付与する、宣言順のニーモニックと条件分岐の一覧
@@ -114,10 +110,7 @@ class Syntax(metaclass=SyntaxType):
                 pass
 
         # 親が与えられている場合は親のプロパティも参照する
-        if (
-            self._parent is not None and
-            any(mnemonic.name == name for mnemonic in self._parent._mnemonics)
-        ):
+        if self._parent is not None and any(mnemonic.name == name for mnemonic in self._parent._mnemonics):
             return getattr(self._parent, name)
 
     def get_names(self) -> list[str]:
@@ -140,6 +133,7 @@ class Syntax(metaclass=SyntaxType):
         from ariblib.descriptors import Descriptor, DescriptorDict
         from types import GeneratorType
         from collections import defaultdict
+
         print('{}{}'.format(' ' * indent, '-' * (80 - indent)))
         if isinstance(self, Section) or isinstance(self, Descriptor):
             print('{}<<{}>>'.format(' ' * indent, self.__class__.__name__))
@@ -164,7 +158,9 @@ class Syntax(metaclass=SyntaxType):
             else:
                 print("{}{}\t{}".format(' ' * indent, name, value))
 
-    def on(self, Descriptor: type[Descriptor], descriptor_name: str = 'descriptors') -> Callable[[DescriptorCallback], None]:
+    def on(
+        self, Descriptor: type[Descriptor], descriptor_name: str = 'descriptors'
+    ) -> Callable[[DescriptorCallback], None]:
         """記述子ごとにコールバック関数を設定する
         いまのところ、一つの記述子についてコールバック関数は1つのみ定義できる。
         """
@@ -173,14 +169,14 @@ class Syntax(metaclass=SyntaxType):
 
         def attach_callback(callback: DescriptorCallback) -> None:
             self._callbacks[Descriptor] = callback
+
         return attach_callback
 
     def execute(self) -> None:
         """指定された記述子がyieldされるごとにコールバック関数を実行する"""
         from ariblib.descriptors import ExtendedEventDescriptor
 
-        for descriptor_type, descriptors in\
-                getattr(self, self.descriptor_name).items():
+        for descriptor_type, descriptors in getattr(self, self.descriptor_name).items():
             if descriptor_type not in self._callbacks:
                 continue
 

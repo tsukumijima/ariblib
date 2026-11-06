@@ -15,7 +15,9 @@ from ariblib.sections import (
 from ariblib.syntax import Syntax
 
 
-def services(ts: TransportStreamFile, channel_id: object = None, single: bool = False, stream: str | None = None) -> Iterator['Service']:
+def services(
+    ts: TransportStreamFile, channel_id: object = None, single: bool = False, stream: str | None = None
+) -> Iterator['Service']:
     """トランスポートストリームから Service オブジェクトを返すジェネレータ"""
 
     get_channel_id: Callable[[ServiceDescriptionSection], str]
@@ -79,7 +81,8 @@ def tsid2channel(tsid: int, original_network_id: int | None = None) -> str:
             return "CS{:02d}".format(repeater)
         raise ValueError(
             'cannot convert transport_stream_id 0x{:04X} of original_network_id 0x{:04X} '
-            'to a recpt1 channel; specify channel_id'.format(tsid, original_network_id))
+            'to a recpt1 channel; specify channel_id'.format(tsid, original_network_id)
+        )
 
     # original_network_id がないときは、BS の中継器番号が奇数、CS が偶数であることで判別する
     if repeater % 2 == 0:
@@ -89,15 +92,13 @@ def tsid2channel(tsid: int, original_network_id: int | None = None) -> str:
 
 
 class Service(object):
-
     """サービスラッパークラス"""
 
     def __init__(self, service: Syntax, channel_id: str) -> None:
         self.channel_id = channel_id
         if 'BS' in channel_id:
             self.broadcasting_type = 'BS'
-            self.channel_number =\
-                int(channel_id.split('_')[0].replace('BS', ''))
+            self.channel_number = int(channel_id.split('_')[0].replace('BS', ''))
         elif 'CS' in channel_id:
             self.broadcasting_type = 'CS'
             self.channel_number = int(channel_id.replace('CS', ''))

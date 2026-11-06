@@ -15,10 +15,25 @@ Copyright (C) 2011 Yasumasa Murakami. All Rights Reserved.
 
 
 class Code:
-    (KANJI, ALPHANUMERIC, HIRAGANA, KATAKANA, MOSAIC_A, MOSAIC_B, MOSAIC_C,
-     MOSAIC_D, PROP_ALPHANUMERIC, PROP_HIRAGANA, PROP_KATAKANA,
-     JIS_X0201_KATAKANA, JIS_KANJI_PLANE_1, JIS_KANJI_PLANE_2,
-     ADDITIONAL_SYMBOLS, UNSUPPORTED) = range(16)
+    (
+        KANJI,
+        ALPHANUMERIC,
+        HIRAGANA,
+        KATAKANA,
+        MOSAIC_A,
+        MOSAIC_B,
+        MOSAIC_C,
+        MOSAIC_D,
+        PROP_ALPHANUMERIC,
+        PROP_HIRAGANA,
+        PROP_KATAKANA,
+        JIS_X0201_KATAKANA,
+        JIS_KANJI_PLANE_1,
+        JIS_KANJI_PLANE_2,
+        ADDITIONAL_SYMBOLS,
+        UNSUPPORTED,
+    ) = range(16)
+
 
 CODE_SET_G = {
     0x42: (Code.KANJI, 2),
@@ -132,16 +147,15 @@ class DesignationError(Exception):
 
 
 class CodeSetController:
-
     def __init__(self) -> None:
         self.v_buffer = {
             Buffer.G0: CODE_SET_G[0x42],  # KANJI
-            Buffer.G1: CODE_SET_G[0x4a],  # ALPHANUMERIC
+            Buffer.G1: CODE_SET_G[0x4A],  # ALPHANUMERIC
             Buffer.G2: CODE_SET_G[0x30],  # HIRAGANA
             Buffer.G3: CODE_SET_G[0x31],  # KATAKANA
         }
         self.single_shift: int | None = None
-        self.graphic_left = Buffer.G0   # KANJI
+        self.graphic_left = Buffer.G0  # KANJI
         self.graphic_right = Buffer.G2  # HIRAGANA
         self.esc_seq_count = 0
         self.esc_buffer_index = Buffer.G0
@@ -150,9 +164,7 @@ class CodeSetController:
     def designate(self, code: int) -> None:
         if code not in CODE_SET_KEYS:
             raise DesignationError(
-                'esc_seq_count=%i esc_buffer_index=%s code=0x%02X' % (
-                    self.esc_seq_count, self.esc_buffer_index, code
-                )
+                'esc_seq_count=%i esc_buffer_index=%s code=0x%02X' % (self.esc_seq_count, self.esc_buffer_index, code)
             )
         if self.esc_drcs:
             self.v_buffer[self.esc_buffer_index] = CODE_SET_DRCS[code]
@@ -189,7 +201,6 @@ class CodeSetController:
 
 
 class AribArray(bytearray):
-
     def pop0(self) -> int:
         try:
             return self.pop(0)
@@ -240,18 +251,18 @@ class AribString:
                         # GL/GR Table
                         self.do_convert(data, with_gaiji)
                     elif data in (
-                            0x20,   # space
-                            0xA0,   # space (arib)
-                            0x09,  # HT
+                        0x20,  # space
+                        0xA0,  # space (arib)
+                        0x09,  # HT
                     ):
                         self.utf_buffer.write(' ')
                     elif data in (
-                            0x0D,  # CR
-                            0x0A,  # LF
+                        0x0D,  # CR
+                        0x0A,  # LF
                     ):
                         self.utf_buffer.write('\n')
                     else:
-                         # Control Character
+                        # Control Character
                         self.do_control(data)
             except AribIndexError:
                 break
@@ -306,21 +317,20 @@ class AribString:
             # 追加シンボル文字コード出力
             if with_gaiji:
                 if self.split_symbol:
-                    wchar = ((char << 8) + char2)
+                    wchar = (char << 8) + char2
                     gaiji = GAIJI_MAP_TITLE.get(wchar)
                     if gaiji is not None:
                         self.utf_buffer_symbol.write(gaiji)
                     else:
                         self.utf_buffer.write(GAIJI_MAP_OTHER.get(wchar, "??"))
                 else:
-                    self.utf_buffer.write(
-                        GAIJI_MAP.get(((char << 8) + char2), "??"))
+                    self.utf_buffer.write(GAIJI_MAP.get(((char << 8) + char2), "??"))
 
     def do_control(self, data: int) -> None:
         if data == 0x0F:
-            self.control.invoke(Buffer.G0, CodeArea.LEFT, True)   # LS0
+            self.control.invoke(Buffer.G0, CodeArea.LEFT, True)  # LS0
         elif data == 0x0E:
-            self.control.invoke(Buffer.G1, CodeArea.LEFT, True)   # LS1
+            self.control.invoke(Buffer.G1, CodeArea.LEFT, True)  # LS1
         elif data == 0x19:
             self.control.invoke(Buffer.G2, CodeArea.LEFT, False)  # SS2
         elif data == 0x1D:
@@ -347,9 +357,9 @@ class AribString:
     def do_escape(self, data: int) -> None:
         if self.control.esc_seq_count == 1:
             if data == 0x6E:
-                self.control.invoke(Buffer.G2, CodeArea.LEFT, True)   # LS2
+                self.control.invoke(Buffer.G2, CodeArea.LEFT, True)  # LS2
             elif data == 0x6F:
-                self.control.invoke(Buffer.G3, CodeArea.LEFT, True)   # LS3
+                self.control.invoke(Buffer.G3, CodeArea.LEFT, True)  # LS3
             elif data == 0x7E:
                 self.control.invoke(Buffer.G1, CodeArea.RIGHT, True)  # LS1R
             elif data == 0x7D:
@@ -365,9 +375,13 @@ class AribString:
             elif data == 0x2B:
                 self.control.set_escape(Buffer.G3, False)
             else:
-                raise EscapeSequenceError('esc_seq_count=%i data=0x%02X' % (
-                    self.control.esc_seq_count, data,
-                ))
+                raise EscapeSequenceError(
+                    'esc_seq_count=%i data=0x%02X'
+                    % (
+                        self.control.esc_seq_count,
+                        data,
+                    )
+                )
         elif self.control.esc_seq_count == 2:
             if data == 0x20:
                 self.control.set_escape(None, True)
@@ -391,6 +405,7 @@ class AribString:
 
     def __repr__(self) -> str:
         return self.convert_utf().rstrip()
+
 
 if __name__ == '__main__':
     f = open(sys.argv[1], mode='rb')

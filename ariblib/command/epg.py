@@ -16,15 +16,19 @@ from ariblib.sections import (
 def dump_json(event: Event) -> str:
     # extract_epg() は duration を持つイベントだけを渡す
     assert event.duration is not None
-    return json.dumps({
-        "start_time": str(event.start_time),
-        "duration": event.duration.total_seconds(),
-        "title": str(event.title),
-        "desc": str(event.desc),
-        "genre": event.genre,
-        "subgenre": event.subgenre,
-        "user_genre": event.user_genre,
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "start_time": str(event.start_time),
+            "duration": event.duration.total_seconds(),
+            "title": str(event.title),
+            "desc": str(event.desc),
+            "genre": event.genre,
+            "subgenre": event.subgenre,
+            "user_genre": event.user_genre,
+        },
+        ensure_ascii=False,
+    )
+
 
 def extract_epg(ts: TransportStreamFile, threshold: int = 5) -> Iterator[str]:
     count: defaultdict[tuple[str, str], int] = defaultdict(int)
@@ -64,6 +68,7 @@ def extract_epg(ts: TransportStreamFile, threshold: int = 5) -> Iterator[str]:
         if count[key] > threshold:
             yield programs[key]
 
+
 def epg(args: Namespace) -> None:
     outpath: str | int
     if args.outpath == '-':
@@ -75,6 +80,7 @@ def epg(args: Namespace) -> None:
         with open(outpath, mode='w', encoding='utf-8') as fw:
             for epg in extract_epg(ts):
                 print(epg, file=fw)
+
 
 def add_parser(parsers: '_SubParsersAction[ArgumentParser]') -> None:
     parser = parsers.add_parser('epg')

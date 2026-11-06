@@ -45,7 +45,9 @@ def meta_cache(suffix: str) -> Callable[[Callable[[_M, Syntax], int]], Callable[
             result = func(self, instance)
             caches[cache_name] = result
             return result
+
         return cached
+
     return cache
 
 
@@ -56,11 +58,11 @@ def cache(func: Callable[[_M, Syntax, type[Syntax]], _R]) -> Callable[[_M, Synta
         result = func(self, instance, owner)
         setattr(instance, self.name, result)
         return result
+
     return cached
 
 
 class mnemonic(Generic[_S_co]):
-
     """ビット列表記の親クラス
 
     型引数は、ループや条件分岐の子シンタックスのクラス (子シンタックスを持たないニーモニックは Syntax) を表す。
@@ -84,8 +86,7 @@ class mnemonic(Generic[_S_co]):
             return self.length
 
         if self.length is None:
-            return sum(mnemonic.real_length(instance)
-                       for mnemonic in self.cls._mnemonics)
+            return sum(mnemonic.real_length(instance) for mnemonic in self.cls._mnemonics)
         if isinstance(self.length, mnemonic):
             return getattr(instance, self.length.name) * 8
         if isinstance(self.length, str):
@@ -96,7 +97,6 @@ class mnemonic(Generic[_S_co]):
 
 
 class uimsbf(mnemonic['Syntax']):
-
     """unsigned integer most significant bit first[符号無し整数、最上位ビットが先頭]"""
 
     @cache
@@ -115,29 +115,25 @@ class uimsbf(mnemonic['Syntax']):
         pos = 8 - start
         if length + start <= 8:
             shift = pos - length
-            filter = 2 ** pos - 2 ** shift
+            filter = 2**pos - 2**shift
             return (packet[block] & filter) >> shift
 
-        return (uimsbf.uimsbf(packet, index, pos) << (length - pos) |
-                uimsbf.uimsbf(packet, index + pos, length - pos))
+        return uimsbf.uimsbf(packet, index, pos) << (length - pos) | uimsbf.uimsbf(packet, index + pos, length - pos)
 
 
 class bslbf(uimsbf):
-
     """bit string,left bit first[ビット列、左ビットが先頭]
 
     実質 uimsbf と同じ処理をすればよい。"""
 
 
 class rpchof(uimsbf):
-
     """remainder polynominal coefficients, highest order first[多項式係数の剰余、最上位階数が先頭]
 
     正しい CRC の値かどうか検証する必要があるが、とりあえず uimsbf と同じ処理とする。"""
 
 
 class mjd(mnemonic['Syntax']):
-
     """Modified Julian Date[修正ユリウス日]"""
 
     @cache
@@ -154,7 +150,6 @@ class mjd(mnemonic['Syntax']):
 
 
 class bcd(mnemonic['Syntax']):
-
     """二進化十進数で表現された数値"""
 
     def __init__(self, length: Length, decimal_point: int = 0) -> None:
@@ -167,13 +162,11 @@ class bcd(mnemonic['Syntax']):
         start = self.start(instance)
         value = 0
         for digit in range(self.real_length(instance) // 4):
-            value = value * 10 + uimsbf.uimsbf(
-                instance._packet, start + digit * 4, 4)
-        return value / (10 ** self.decimal_point)
+            value = value * 10 + uimsbf.uimsbf(instance._packet, start + digit * 4, 4)
+        return value / (10**self.decimal_point)
 
 
 class bcdtime(mnemonic['Syntax']):
-
     """二進化十進数で表現された時分秒"""
 
     @cache
@@ -189,25 +182,22 @@ class bcdtime(mnemonic['Syntax']):
 
 
 class otm(mnemonic['Syntax']):
-
     """オフセット時刻。二進化十進数で表現された時・分・秒・ミリ秒 (9桁の BCD と 4 ビットの予約)"""
 
     @cache
     def __get__(self, instance: Syntax, owner: type[Syntax]) -> timedelta:
         start = self.start(instance)
         block = start // 8
-        hour, minute, second = map(bcd2int, instance._packet[block:block + 3])
+        hour, minute, second = map(bcd2int, instance._packet[block : block + 3])
         millisecond = (
-            ((instance._packet[block + 3] & 0xF0) >> 4) * 100 +
-            (instance._packet[block + 3] & 0x0F) * 10 +
-            ((instance._packet[block + 4] & 0xF0) >> 4)
+            ((instance._packet[block + 3] & 0xF0) >> 4) * 100
+            + (instance._packet[block + 3] & 0x0F) * 10
+            + ((instance._packet[block + 4] & 0xF0) >> 4)
         )
-        return timedelta(hours=hour, minutes=minute, seconds=second,
-                         milliseconds=millisecond)
+        return timedelta(hours=hour, minutes=minute, seconds=second, milliseconds=millisecond)
 
 
 class aribstr(mnemonic['Syntax']):
-
     """8単位符号で符号化された文字列"""
 
     @cache
@@ -220,7 +210,6 @@ class aribstr(mnemonic['Syntax']):
 
 
 class char(mnemonic['Syntax']):
-
     """ISO 8859-1に従って8ビットで符号化された文字列"""
 
     @cache
@@ -243,7 +232,6 @@ class raw(mnemonic['Syntax']):
 
 
 class fixed_size_loop(mnemonic[_S]):
-
     """バイト数固定のループ"""
 
     def __init__(self, cls: type[_S], length: Length) -> None:
@@ -265,7 +253,6 @@ class fixed_size_loop(mnemonic[_S]):
 
 
 class fixed_count_loop(mnemonic[_S]):
-
     """回数固定のループ"""
 
     def __init__(self, cls: type[_S], count: Count) -> None:
@@ -298,13 +285,10 @@ class fixed_count_loop(mnemonic[_S]):
 
     @meta_cache('len')
     def real_length(self, instance: Syntax) -> int:
-        return sum(mnemonic.real_length(sub)
-                   for sub in getattr(instance, self.name)
-                   for mnemonic in sub._mnemonics)
+        return sum(mnemonic.real_length(sub) for sub in getattr(instance, self.name) for mnemonic in sub._mnemonics)
 
 
 class case_table(mnemonic[_S_co]):
-
     """if"""
 
     def __init__(self, cls: type[_S_co], condition: mnemonic[Syntax] | Callable[[Syntax], object]) -> None:
@@ -331,8 +315,7 @@ class case_table(mnemonic[_S_co]):
             # サブシンタックスの各フィールドの長さは、親ではなくサブシンタックスのインスタンスで求める
             # 親で求めると、サブシンタックスの中の値で長さや回数が決まるフィールドを、親の __getattr__() 経由で別の条件分岐の中から探してしまう
             sub = getattr(instance, self.name)
-            return sum(mnemonic.real_length(sub)
-                       for mnemonic in sub._mnemonics)
+            return sum(mnemonic.real_length(sub) for mnemonic in sub._mnemonics)
         return 0
 
 

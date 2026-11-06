@@ -53,8 +53,7 @@ def captions(ts: TransportStreamFile, color: bool = False) -> Iterator['Caption'
             caption_date = base_time + (spes.pts - base_pcr)
             for data in spes.data_units:
                 if data.data_unit_parameter == 0x20:
-                    yield Caption(caption_date,
-                                  string_class(data.data_unit_data))
+                    yield Caption(caption_date, string_class(data.data_unit_data))
                 elif data.data_unit_parameter == 0x30:
                     for code in data.codes:
                         drcs_code = code.character_code & 0xFF
@@ -76,6 +75,7 @@ class Caption(object):
 
 class CProfileString(object):
     """CProfile文字列"""
+
     mapping = {
         0: ' ',
         7: '\a',
@@ -103,7 +103,7 @@ class CProfileString(object):
         """一文字ずつUnicode型として返すジェネレータ"""
         while self.data:
             char1 = self.data.pop(0)
-            if 0xa0 < char1 < 0xff:
+            if 0xA0 < char1 < 0xFF:
                 # 2バイト目がなければ、1バイトの外字として扱う
                 try:
                     char2 = self.data.pop(0)
@@ -116,22 +116,20 @@ class CProfileString(object):
                 try:
                     yield bytes((char1, char2)).decode('euc-jp')
                 except UnicodeDecodeError:
-                    gaiji = ((char1 & 0x7f) << 8) | (char2 & 0x7f)
-                    if gaiji == 0x7c21:
+                    gaiji = ((char1 & 0x7F) << 8) | (char2 & 0x7F)
+                    if gaiji == 0x7C21:
                         # 次の字幕パケットへセリフが続いていることを示す矢印
                         continue
                     try:
                         yield GAIJI_MAP[gaiji]
                     except KeyError:
-                        yield '(0x{:x}{:x}, {}区{}点)'.format(
-                            char1, char2, char1 - 0xA0, char2 - 0xA0)
-            elif 0x20 < char1 < 0x2f:
+                        yield '(0x{:x}{:x}, {}区{}点)'.format(char1, char2, char1 - 0xA0, char2 - 0xA0)
+            elif 0x20 < char1 < 0x2F:
                 if char1 in self.drcs:
                     if self.drcs[char1] in mapping:
                         yield mapping[self.drcs[char1]]
                     else:
-                        yield '{{{{drcs:0x{:02X}:{}}}}}'.format(
-                            char1, self.drcs[char1])
+                        yield '{{{{drcs:0x{:02X}:{}}}}}'.format(char1, self.drcs[char1])
             elif char1 == 0x9D:
                 # TIME は後ろの2バイトが待ち時間などのパラメータなので、文字として出力せずに読み飛ばす
                 del self.data[:2]
@@ -145,7 +143,6 @@ class CProfileString(object):
 
 
 class ColoredCProfileString(CProfileString):
-
     """色付き CProfile 文字列"""
 
     mapping = {
@@ -171,7 +168,6 @@ class ColoredCProfileString(CProfileString):
 
 
 class WebVTTCProfileString(ColoredCProfileString):
-
     """WebVTT用 CProfile 文字列"""
 
     mapping = {

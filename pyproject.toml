@@ -32,6 +32,8 @@ include = ["ariblib*"]
 ariblib = ["drcs.tsv", "py.typed"]
 
 [tool.ruff]
+# 1行の長さを最大120文字に設定
+line-length = 120
 # インデントの幅を4スペースに設定
 indent-width = 4
 # Python 3.10 を利用する
@@ -54,6 +56,12 @@ ignore = [
     "UP031",   # 既存の % 書式を書き換えないため
     "UP032",   # 既存の str.format() を f 文字列に書き換えないため
 ]
+
+[tool.ruff.format]
+# 引用符は、モジュールごとに元の実装で使われている形 (主にシングルクオート、外字の表はダブルクオート) を保つ
+quote-style = "preserve"
+# インデントにはスペースを使う
+indent-style = "space"
 
 [tool.pyright]
 # Python バージョンを指定
