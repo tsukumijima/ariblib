@@ -212,9 +212,6 @@ class AribString:
     def __str__(self) -> str:
         return self.convert_utf().rstrip()
 
-    def __nonzero__(self) -> bool:
-        return not self.arib_array
-
     def convert_utf_split(self) -> tuple[str, str]:
         self.split_symbol = True
         self.convert()
