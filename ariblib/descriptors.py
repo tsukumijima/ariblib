@@ -1,8 +1,7 @@
 """記述子の実装"""
 
-from collections import defaultdict
-from collections.abc import Callable
-from typing import ClassVar, TypeVar
+from collections.abc import Callable, ItemsView, Iterator, KeysView, ValuesView
+from typing import ClassVar, TypeVar, cast
 
 from ariblib.mnemonics import (
     aribstr,
@@ -36,23 +35,79 @@ def tag(tag_id: int) -> Callable[[type[_D]], type[_D]]:
     return wrapper
 
 
+class DescriptorDict:
+
+    """記述子のクラスから、そのクラスの記述子のリストへの辞書
+
+    desc[ShortEventDescriptor] や desc.get(ShortEventDescriptor, []) は list[ShortEventDescriptor] を返す
+    含まれない記述子のクラスを引くと、辞書に項目を追加せずに空のリストを返す
+    """
+
+    def __init__(self) -> None:
+        # 記述子のクラスから、記述子の並び順を保ったリストへの辞書 (add() が追加し、__getitem__() などが参照する)
+        self._descriptors: dict[type[Descriptor], list[Descriptor]] = {}
+
+    def add(self, descriptor: 'Descriptor') -> None:
+        """記述子を、そのクラスのリストの末尾に追加する
+
+        Args:
+            descriptor: 追加する記述子
+        """
+
+        self._descriptors.setdefault(type(descriptor), []).append(descriptor)
+
+    def __getitem__(self, key: type[_D]) -> list[_D]:
+        # add() は記述子を自身のクラスのリストに追加するため、key のリストの要素はすべて key のインスタンスになる
+        return cast(list[_D], self._descriptors.get(key, []))
+
+    def get(self, key: type[_D], default: object = None) -> list[_D]:
+        """記述子のクラスのリストを返す。含まれないクラスでも、default ではなく空のリストを返す
+
+        Args:
+            key: 記述子のクラス
+            default: 以前の defaultdict と同じ get(key, []) の呼び出しを受け付けるための引数 (使わない)
+
+        Returns:
+            list: key のクラスの記述子のリスト
+        """
+
+        return self[key]
+
+    def __contains__(self, key: type['Descriptor']) -> bool:
+        return key in self._descriptors
+
+    def __iter__(self) -> Iterator[type['Descriptor']]:
+        return iter(self._descriptors)
+
+    def __len__(self) -> int:
+        return len(self._descriptors)
+
+    def keys(self) -> KeysView[type['Descriptor']]:
+        return self._descriptors.keys()
+
+    def values(self) -> ValuesView[list['Descriptor']]:
+        return self._descriptors.values()
+
+    def items(self) -> ItemsView[type['Descriptor'], list['Descriptor']]:
+        return self._descriptors.items()
+
+
 class descriptors(mnemonic[Syntax]):
 
     """記述子リスト"""
 
     @cache
-    def __get__(self, instance: Syntax, owner: type[Syntax]) -> defaultdict[type['Descriptor'], list['Descriptor']]:
+    def __get__(self, instance: Syntax, owner: type[Syntax]) -> DescriptorDict:
         length = self.real_length(instance) // 8
         start = self.start(instance) // 8
         end = start + length
-        result: defaultdict[type[Descriptor], list[Descriptor]] = defaultdict(list)
+        result = DescriptorDict()
         while start < end:
             descriptor_tag = instance._packet[start]
             descriptor_length = instance._packet[start + 1] + 2
             block_end = start + descriptor_length
             desc_class = Descriptor.get(descriptor_tag)
-            inner = desc_class(instance._packet[start:block_end])
-            result[desc_class].append(inner)
+            result.add(desc_class(instance._packet[start:block_end]))
             start = block_end
         return result
 

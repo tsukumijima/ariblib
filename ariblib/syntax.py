@@ -137,7 +137,7 @@ class Syntax(metaclass=SyntaxType):
 
     def dump(self, indent: int = 0) -> None:
         from ariblib.sections import Section
-        from ariblib.descriptors import Descriptor
+        from ariblib.descriptors import Descriptor, DescriptorDict
         from types import GeneratorType
         from collections import defaultdict
         print('{}{}'.format(' ' * indent, '-' * (80 - indent)))
@@ -147,7 +147,7 @@ class Syntax(metaclass=SyntaxType):
             value = getattr(self, name)
             if isinstance(value, Syntax):
                 value.dump(indent + 2)
-            elif isinstance(value, defaultdict):
+            elif isinstance(value, (defaultdict, DescriptorDict)):
                 for value in value.values():
                     for child in value:
                         child.dump(indent + 2)
