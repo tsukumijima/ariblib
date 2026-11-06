@@ -39,7 +39,6 @@ class Section(Syntax):
 
     # このセクションを運ぶ PID の一覧
     # 各セクションのクラスが定義する。PMT や字幕 PES のように PID が PAT や PMT で決まるセクションは、利用する側が実行時に設定する
-    # 字幕 PES の PID が見つからなかったときは None が入る (TransportStreamFile.get_caption_pid() の戻り値をそのまま設定するため)
     _pids: ClassVar[Sequence[int | None]]
     _table_ids: ClassVar[Sequence[int]] = range(256)
 
