@@ -47,7 +47,7 @@ def parse_tsid(tsid: int) -> tuple[int, int, int, int]:
     if 16625 <= tsid <= 16626:
         tsid -= 1
     network_lower_4bit = (tsid & 0xF000) >> 12
-    new = (tsid & 0x0E000) >> 9
+    new = (tsid & 0x0E00) >> 9
     repeater = (tsid & 0x01F0) >> 4
     slot = tsid & 0x0007
 
