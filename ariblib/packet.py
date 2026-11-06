@@ -532,6 +532,12 @@ class SynchronizedPacketizedElementaryStream(Section):
                     class patterns(Syntax):
                         pattern_data = raw(16)
 
+            # パターンを1行16ビットとして読んでいるため (drcs.tsv のハッシュはこの読み方で作られている)、
+            # width・depth によっては読んだ長さが data_unit_size より短くなる
+            # 続くデータユニット (字幕本文など) の位置がずれないように、data_unit_size に満たない残りを読み飛ばす
+            # (data_unit_size は number_of_code 以降のバイト数。ARIB-STD-B24-1-3-9.4 表9-11)
+            remaining_data = raw(lambda self: max(self.data_unit_size - 1 - sum(len(code) for code in self.codes) // 8, 0))
+
         @case(lambda self: self.data_unit_parameter not in (0x20, 0x30))
         class other_unit(Syntax):
             """文字・DRCS 以外のデータユニットは、data_unit_size の分だけ読み飛ばす"""
