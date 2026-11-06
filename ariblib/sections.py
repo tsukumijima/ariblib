@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Sequence
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from ariblib.descriptors import (
     descriptors,
     ExtendedEventDescriptor,
+    PartialTSTimeDescriptor,
     StreamIdentifierDescriptor,
 )
 from ariblib.diidescriptors import diidescriptors
@@ -865,6 +867,32 @@ class SelectionInformationSection(Section):
         descriptors = descriptors(service_loop_length)
 
     CRC_32 = rpchof(32)
+
+    @property
+    def jst_time(self) -> datetime | None:
+        """パーシャルトランスポートストリームタイム記述子の現在時刻 (JST_time) に、オフセット時間を適用した時刻を返す
+
+        伝送情報のループの記述子を優先し、なければサービスのループの記述子を使う (ARIB TR-B15 第一部 第二編 6.2.4)
+
+        Returns:
+            datetime | None: 現在時刻。どの記述子にも JST_time が記述されていなければ None
+        """
+
+        descriptors = list(self.transmission_info_descriptors.get(PartialTSTimeDescriptor, []))
+        for service in self.services:
+            descriptors.extend(service.descriptors.get(PartialTSTimeDescriptor, []))
+        for descriptor in descriptors:
+            if not descriptor.JST_time_flag:
+                continue
+            jst_time: datetime | None = descriptor.JST_time
+            if jst_time is None:
+                continue
+            # offset_flag が 0 ならオフセット時間を加算し、1 なら減算する
+            offset = descriptor.offset if descriptor.offset is not None else timedelta()
+            if descriptor.offset_flag:
+                return jst_time - offset
+            return jst_time + offset
+        return None
 
 
 class DSMCCSection(Section):
