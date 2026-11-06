@@ -83,6 +83,9 @@ class Section(Syntax):
         """指定された記述子がyieldされるごとにコールバック関数を実行する"""
 
         for descriptor_type, descriptor_list in self.descriptors.items():
+            # コールバックが設定されていない記述子は読み飛ばす
+            if descriptor_type not in self.callbacks:
+                continue
             if descriptor_type == ExtendedEventDescriptor:
                 self.callbacks[descriptor_type](descriptor_list)
             else:
