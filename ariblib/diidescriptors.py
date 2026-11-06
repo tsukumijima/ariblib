@@ -278,13 +278,13 @@ class RootCertificateDescriptor(DIIDescriptor):
     root_certificate_type = bslbf(1)
     reserved = bslbf(7)
 
-    @case(lambda self: self.root_certificate_type == 0)
-    @loop(lambda self: self.descriptor_length - 1)
+    # root_certificate_type によって、残りのバイト列をどちらのループとして読むかが決まる
+    # 条件に合わないほうのループは長さを 0 にして、空のリストを返す
+    @loop(lambda self: self.descriptor_length - 1 if self.root_certificate_type == 0 else 0)
     class root_certificate_type_0(Syntax):
         root_certificate_id = uimsbf(32)
         root_certificate_version = uimsbf(32)
 
-    @case(lambda self: self.root_certificate_type != 0)
-    @loop(lambda self: self.descriptor_length - 1)
+    @loop(lambda self: self.descriptor_length - 1 if self.root_certificate_type != 0 else 0)
     class root_certificate_type_not_0(Syntax):
         reserved = bslbf(64)
