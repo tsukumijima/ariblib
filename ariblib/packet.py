@@ -328,6 +328,9 @@ def adaptation_field(packet: bytes | bytearray) -> AdaptationField | bytes:
 
     start = 4
     adaptation_length = packet[start]
+    # adaptation_field_length が 0 の adaptation field は1バイトのスタッフィングで、フラグを持たない
+    if adaptation_length == 0:
+        return b''
     end = start + adaptation_length + 1
     return AdaptationField(packet[start:end])
 
