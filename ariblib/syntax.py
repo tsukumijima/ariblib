@@ -106,7 +106,10 @@ class Syntax(metaclass=SyntaxType):
             try:
                 if conditional.condition(self):
                     sub = getattr(self, conditional.name)
-                    return getattr(sub, name)
+                    value = getattr(sub, name)
+                    # 条件に合った分岐にこの名前のフィールドがなければ、次の分岐を探す
+                    if value is not None:
+                        return value
             except AttributeError:
                 pass
 
