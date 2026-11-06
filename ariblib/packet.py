@@ -46,7 +46,9 @@ class TransportStreamFile(BufferedReader):
 
     """TSファイル"""
 
+    # TS パケットのバイト数と、BDAV の録画 (.m2ts) の TP_extra_header 付きのパケットのバイト数
     PACKET_SIZE = 188
+    M2TS_PACKET_SIZE = 192
 
     def __init__(self, path: StrOrBytesPath | int | RawIOBase | BytesIO, chunk_size: int = 10000) -> None:
         # ファイルのパスかファイルディスクリプタのほか、メモリ上の TS (BytesIO など) のようなバイナリのストリームも読み込める
@@ -57,24 +59,83 @@ class TransportStreamFile(BufferedReader):
         self.chunk_size = chunk_size
         self._callbacks: dict[type[Section], SectionCallback] = dict()
 
+        # ファイル上の1パケットのバイト数
+        # BD に記録された BDAV の録画 (.m2ts) は、188 バイトの各パケットの前に4バイトの TP_extra_header
+        # (copy_permission_indicator と arrival_time_stamp) が付いた 192 バイトのパケットで構成されている
+        # __iter__() はこの値を使ってファイルを読み、TP_extra_header を取り除いた 188 バイトのパケットを返す
+        self.packet_size = self.PACKET_SIZE
+        # シークできるファイルは、先頭の2パケット分を読んでから読み込み位置を戻して判定する
+        # シークできない入力 (パイプ) は、2パケット分が届くまで判定できないため、最初の __iter__() か __next__() で判定する
+        self._packet_size_detected = False
+        # シークできない入力の判定のために先に読んだデータ (__iter__() と __next__() が、続きの読み込みより先に使う)
+        self._head = b''
+        if self.seekable():
+            position = self.tell()
+            self.packet_size = self.detect_packet_size(self.read(self.M2TS_PACKET_SIZE * 2))
+            self.seek(position)
+            self._packet_size_detected = True
+
+    @classmethod
+    def detect_packet_size(cls, head: bytes) -> int:
+        """先頭の2パケット分のデータから、同期バイト (0x47) の位置でファイル上の1パケットのバイト数を判定する
+
+        Args:
+            head: ファイルの先頭の 384 バイト (192 バイトのパケットの2個分)
+
+        Returns:
+            int: 192 バイトのパケットと判定したときは 192、それ以外は 188
+        """
+
+        if len(head) >= cls.M2TS_PACKET_SIZE * 2 and\
+                not (head[0] == 0x47 and head[cls.PACKET_SIZE] == 0x47) and\
+                head[4] == 0x47 and head[cls.M2TS_PACKET_SIZE + 4] == 0x47:
+            return cls.M2TS_PACKET_SIZE
+        return cls.PACKET_SIZE
+
+    def _detect_unseekable_packet_size(self) -> None:
+        """シークできない入力のパケットのバイト数を、最初の2パケット分を読んで判定する (判定済みなら何もしない)"""
+
+        if self._packet_size_detected:
+            return
+        # read() は、指定したバイト数を読むか入力が終わるまで待つ
+        self._head = self.read(self.M2TS_PACKET_SIZE * 2)
+        self.packet_size = self.detect_packet_size(self._head)
+        self._packet_size_detected = True
+
     def __iter__(self) -> Iterator[bytes]:
-        packet_size = self.PACKET_SIZE
+        # シークできない入力は、最初の2パケット分を読んで判定する
+        self._detect_unseekable_packet_size()
+        packet_size = self.packet_size
+        # 192 バイトのパケットの先頭の TP_extra_header の長さ (188 バイトのパケットでは 0)
+        header_size = packet_size - self.PACKET_SIZE
         chunk_size = self.chunk_size
         buffer_size = packet_size * chunk_size
-        packets = iter(lambda: self.read(buffer_size), b'')
+
+        def read_chunk() -> bytes:
+            """判定のために先に読んだデータから順に、1チャンク分のデータを読む"""
+            # 走査を途中でやめたときも、まだチャンクに含めていない先読みのデータは次の読み込みで使う
+            chunk = self._head[:buffer_size]
+            self._head = self._head[buffer_size:]
+            if len(chunk) < buffer_size:
+                chunk += self.read(buffer_size - len(chunk))
+            return chunk
+
+        packets = iter(read_chunk, b'')
         for packet in packets:
-            for start, stop in zip(
-                range(0, buffer_size - packet_size + 1, packet_size),
-                range(packet_size, buffer_size + 1, packet_size)
-            ):
-                next = packet[start:stop]
+            for start in range(0, len(packet), packet_size):
+                next = packet[start + header_size:start + packet_size]
                 # ファイルの終端で途中で切れたパケットは、不完全なので読み飛ばす
-                if len(next) < packet_size:
+                if len(next) < self.PACKET_SIZE:
                     return
                 yield next
 
     def __next__(self) -> bytes:
-        return self.read(self.PACKET_SIZE)
+        # シークできない入力は、判定のために先に読んだデータから順に返す
+        self._detect_unseekable_packet_size()
+        packet = self._head[:self.packet_size]
+        self._head = self._head[self.packet_size:]
+        packet += self.read(self.packet_size - len(packet))
+        return packet[self.packet_size - self.PACKET_SIZE:]
 
     def on(self, Section: type[Section]) -> Callable[[SectionCallback], None]:
         """セクションごとにコールバック関数を設定する
