@@ -592,13 +592,28 @@ class DownloadContentDescriptor(Descriptor):
 
 
 @tag(0xCB)
-class EncryptDescriptor(Descriptor):
+class CAContractInfoDescriptor(Descriptor):
 
-    """Encrypt記述子(ARIB-STD-B25-3.4.4.7)"""
+    """CA契約情報記述子(ARIB-STD-B25-4.7.2 表4-77)"""
 
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
-    encrypt_id = uimsbf(8)
+    CA_system_id = uimsbf(16)
+    CA_unit_id = uimsbf(4)
+    num_of_component = uimsbf(4)
+
+    # 課金単位に属するコンポーネント (ES) の component_tag
+    @times(num_of_component)
+    class components(Syntax):
+        component_tag = uimsbf(8)
+
+    # 視聴予約 (録画予約) の可否を IC カードで確認するための契約確認情報
+    contract_verification_info_length = uimsbf(8)
+    contract_verification_info = bslbf(contract_verification_info_length)
+
+    # 料金名称 (8単位符号の文字列)
+    fee_name_length = uimsbf(8)
+    fee_name = aribstr(fee_name_length)
 
 
 @tag(0xCC)
@@ -1060,7 +1075,6 @@ class SystemManagementDescriptor(Descriptor):
     #0xC3: パーシャルトランスポートストリームタイム記述子,
     #0xC6: 対象地域記述子,
     #0xCA: CA_EMM_TS記述子,
-    #0xCB: CA契約情報記述子,
     #0xD0: 基本ローカルイベント記述子,
     #0xD1: リファレンス記述子,
     #0xD2: ノード関係記述子,
@@ -1073,5 +1087,4 @@ class SystemManagementDescriptor(Descriptor):
     #0xF7: カルーセル互換複合記述子,
     #0xF8: 限定再生方式記述子,
     #0xF9: 有線TS分割システム記述子,
-    #0xFC: 緊急情報記述子,
 """

@@ -288,3 +288,13 @@ class RootCertificateDescriptor(DIIDescriptor):
     @loop(lambda self: self.descriptor_length - 1 if self.root_certificate_type != 0 else 0)
     class root_certificate_type_not_0(Syntax):
         reserved = bslbf(64)
+
+
+@tag(0xCB)
+class EncryptDescriptor(DIIDescriptor):
+
+    """Encrypt 記述子 (ARIB-STD-B25-3.4.4.7　表3-6)"""
+
+    descriptor_tag = uimsbf(8)
+    descriptor_length = uimsbf(8)
+    encrypt_id = uimsbf(8)
