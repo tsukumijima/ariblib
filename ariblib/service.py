@@ -20,7 +20,7 @@ def services(ts: TransportStreamFile, channel_id: object = None, single: bool = 
 
     get_channel_id: Callable[[ServiceDescriptionSection], str]
     if channel_id is None:
-        get_channel_id = lambda sdt: tsid2channel(sdt.transport_stream_id)
+        get_channel_id = lambda sdt: tsid2channel(sdt.transport_stream_id, sdt.original_network_id)
     else:
         get_channel_id = lambda sdt: str(channel_id)
 
@@ -54,11 +54,34 @@ def parse_tsid(tsid: int) -> tuple[int, int, int, int]:
     return (network_lower_4bit, new, repeater, slot)
 
 
-def tsid2channel(tsid: int) -> str:
-    """transport_stream_id を recpt1 が認識する channel 形式に変える"""
+def tsid2channel(tsid: int, original_network_id: int | None = None) -> str:
+    """transport_stream_id を recpt1 が認識する channel 形式に変える
+
+    Args:
+        tsid: transport_stream_id
+        original_network_id: original_network_id (省略すると、BS か CS の TS として扱う)
+
+    Returns:
+        recpt1 の channel 形式の文字列 (BS15_0・CS02 など)
+
+    Raises:
+        ValueError: 地上波など、transport_stream_id から channel を決められないネットワークのとき
+    """
     _lower, _new, repeater, slot = parse_tsid(tsid)
-    # ほんとはSystemManagementDescriptorのbroadcasting_identifierで
-    # BS/CSの判別をすべきだと思う
+
+    # original_network_id でネットワークを判別する
+    # 4 は BS デジタル、6・7 は 110度 CS デジタル
+    # 地上波の channel は物理チャンネルで、transport_stream_id からは求められない
+    if original_network_id is not None:
+        if original_network_id == 4:
+            return "BS{:02d}_{}".format(repeater, slot)
+        if original_network_id in (6, 7):
+            return "CS{:02d}".format(repeater)
+        raise ValueError(
+            'cannot convert transport_stream_id 0x{:04X} of original_network_id 0x{:04X} '
+            'to a recpt1 channel; specify channel_id'.format(tsid, original_network_id))
+
+    # original_network_id がないときは、BS の中継器番号が奇数、CS が偶数であることで判別する
     if repeater % 2 == 0:
         return "CS{:02d}".format(repeater)
     else:
