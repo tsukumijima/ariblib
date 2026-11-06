@@ -99,7 +99,7 @@ class InfoDescriptor(DIIDescriptor):
     descriptor_tag = uimsbf(8)
     descriptor_length = uimsbf(8)
     ISO_639_language_code = char(24)
-    text_char = aribstr(descriptor_length)
+    text_char = aribstr(lambda self: self.descriptor_length - 3)
 
 
 @tag(0x04)
