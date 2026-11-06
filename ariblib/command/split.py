@@ -44,8 +44,7 @@ def split(args: Namespace) -> None:
         new_pat = replace_pat(pat._packet)
         remained_pmt_pid = next(pat.pmt_pids)
         remained_pids.add(remained_pmt_pid)
-        ProgramMapSection._pids = [remained_pmt_pid]
-        pmt = next(ts.sections(ProgramMapSection))
+        pmt = next(ts.sections(ProgramMapSection, pids=[remained_pmt_pid]))
         # PCRと最初のストリームのPIDを残す
         remained_pids.add(pmt.PCR_PID)
         remained_pids.update(pmt_map.elementary_PID for pmt_map in pmt.maps

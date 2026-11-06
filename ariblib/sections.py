@@ -46,6 +46,10 @@ class Section(Syntax):
     # TransportStreamFile.sections() が設定する、このセクションを取り出した PID
     _pid: int
 
+    # TransportStreamFile.sections() が設定する、このセクションの先頭を含むパケットの時点で最後に現れた PCR
+    # (PID を問わない。90kHz 単位の program_clock_reference_base で、それまでに PCR が現れていなければ None)
+    pcr: int | None = None
+
     def __init__(self, packet: bytes | bytearray, pos: int = 0, parent: Syntax | None = None) -> None:
         Syntax.__init__(self, packet, pos, parent)
         self.callbacks: dict[type[Descriptor], DescriptorCallback] = dict()

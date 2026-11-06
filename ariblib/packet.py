@@ -91,22 +91,43 @@ class TransportStreamFile(BufferedReader):
         for section in self.sections(*self._callbacks.keys()):
             self._callbacks[type(section)](section)
 
-    def sections(self, *Sections: type[_SectionT]) -> Iterator[_SectionT]:
-        """パケットストリームから指定のセクションを返す"""
+    def sections(self, *Sections: type[_SectionT], pids: Iterable[int] | None = None) -> Iterator[_SectionT]:
+        """パケットストリームから指定のセクションを返す
+
+        Args:
+            *Sections: 取り出すセクションのクラス
+            pids: セクションを取り出す PID の一覧。PMT のように PID が PAT で決まるセクションに指定する
+                (省略すると、各セクションのクラスの _pids を使う)
+
+        Returns:
+            Iterator: セクションのイテレータ。各セクションの pcr には、そのセクションの先頭を含むパケットの時点で
+                最後に現れた PCR (PID を問わない。90kHz 単位の program_clock_reference_base) が入る
+        """
 
         buf: defaultdict[int, bytearray] = defaultdict(bytearray)
         # PID ごとの直前の continuity_counter
         last_counters: dict[int, int] = dict()
+        # 直前までに現れた PCR と、PID ごとの組み立て中のセクションの先頭を含むパケットの時点の PCR
+        last_pcr: int | None = None
+        start_pcrs: dict[int, int | None] = dict()
 
-        target_pids =\
-            set(chain.from_iterable(Section._pids for Section in Sections))
+        # pids を指定したときは、各セクションのクラスの _pids の代わりにそれを使う
+        # pids はジェネレータ (PAT の pmt_pids など) のこともあるため、最初に1回だけリストにする
+        given_pids = list(pids) if pids is not None else None
+        pids_of_sections: dict[type[_SectionT], list[int | None]] = dict()
+        for SectionClass in Sections:
+            if given_pids is not None:
+                pids_of_sections[SectionClass] = list(given_pids)
+            else:
+                pids_of_sections[SectionClass] = list(SectionClass._pids)
+        target_pids = set(chain.from_iterable(pids_of_sections.values()))
         target_ids: dict[tuple[int | None, int], type[_SectionT]] = dict()
         # CRC_32 を持つセクションは、CRC が正しいものだけを返す
         crc_sections: set[type[_SectionT]] = set()
         for SectionClass in Sections:
             if any('CRC_32' in vars(cls) for cls in SectionClass.__mro__):
                 crc_sections.add(SectionClass)
-            for PID in SectionClass._pids:
+            for PID in pids_of_sections[SectionClass]:
                 for table_id in SectionClass._table_ids:
                     target_ids[(PID, table_id)] = SectionClass
 
@@ -145,9 +166,17 @@ class TransportStreamFile(BufferedReader):
                     continue
                 section = Section(unit)
                 section._pid = PID
+                section.pcr = start_pcrs.get(PID)
                 yield section
 
         for packet in self:
+            # PCR は取り出す対象ではない PID (PCR_PID) で運ばれるため、PID で絞り込む前に記録する
+            # PCR_flag が立っていて、adaptation_field が PCR (6バイト) を含む長さを持っているときだけ
+            if has_adaptation(packet) and packet[4] >= 7 and packet[5] & 0x10:
+                last_pcr = ((packet[6] << 25) | (packet[7] << 17) |
+                            (packet[8] << 9) | (packet[9] << 1) |
+                            ((packet[10] & 0x80) >> 7))
+
             PID = pid(packet)
             if PID not in target_pids:
                 continue
@@ -184,6 +213,7 @@ class TransportStreamFile(BufferedReader):
                     buffer.extend(prev)
                     yield from extract(PID, buffer)
                 buffer[:] = current
+                start_pcrs[PID] = last_pcr
             elif not buffer:
                 continue
             else:
@@ -207,8 +237,7 @@ class TransportStreamFile(BufferedReader):
         from ariblib.descriptors import StreamIdentifierDescriptor
 
         pat = next(self.sections(ProgramAssociationSection))
-        ProgramMapSection._pids = list(pat.pmt_pids)
-        for pmt in self.sections(ProgramMapSection):
+        for pmt in self.sections(ProgramMapSection, pids=pat.pmt_pids):
             for tsmap in pmt.maps:
                 if tsmap.stream_type != 0x06:
                     continue
@@ -227,8 +256,7 @@ class TransportStreamFile(BufferedReader):
         from ariblib.descriptors import VideoDecodeControlDescriptor
 
         pat = next(self.sections(ProgramAssociationSection))
-        ProgramMapSection._pids = list(pat.pmt_pids)
-        for pmt in self.sections(ProgramMapSection):
+        for pmt in self.sections(ProgramMapSection, pids=pat.pmt_pids):
             for tsmap in pmt.maps:
                 for vdc in tsmap.descriptors.get(VideoDecodeControlDescriptor,
                                                  []):
