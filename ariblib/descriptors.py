@@ -877,7 +877,7 @@ class SIPrimeTSDescriptor(Descriptor):
     SI_prime_ts_network_id = uimsbf(16)
     SI_prime_transport_stream_id = uimsbf(16)
 
-    @loop(lambda self: self.descriptor_length - 8)
+    @loop(lambda self: self.descriptor_length - 7)
     class tables(Syntax):
         table_id = uimsbf(8)
         table_description_length = uimsbf(8)
