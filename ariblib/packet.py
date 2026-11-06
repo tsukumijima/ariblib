@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator
 from datetime import timedelta
-from io import BufferedReader, FileIO
+from io import BufferedReader, BytesIO, FileIO, RawIOBase
 from itertools import chain
 from typing import TYPE_CHECKING, TypeAlias, TypeVar
 import zlib
@@ -48,8 +48,12 @@ class TransportStreamFile(BufferedReader):
 
     PACKET_SIZE = 188
 
-    def __init__(self, path: StrOrBytesPath | int, chunk_size: int = 10000) -> None:
-        BufferedReader.__init__(self, FileIO(path))
+    def __init__(self, path: StrOrBytesPath | int | RawIOBase | BytesIO, chunk_size: int = 10000) -> None:
+        # ファイルのパスかファイルディスクリプタのほか、メモリ上の TS (BytesIO など) のようなバイナリのストリームも読み込める
+        if isinstance(path, (RawIOBase, BytesIO)):
+            BufferedReader.__init__(self, path)
+        else:
+            BufferedReader.__init__(self, FileIO(path))
         self.chunk_size = chunk_size
         self._callbacks: dict[type[Section], SectionCallback] = dict()
 
@@ -244,7 +248,7 @@ class TransportStreamFile(BufferedReader):
                 yield timedelta(seconds=pcr / 90000)
 
 
-def tsopen(path: StrOrBytesPath | int, chunk: int = 10000) -> TransportStreamFile:
+def tsopen(path: StrOrBytesPath | int | RawIOBase | BytesIO, chunk: int = 10000) -> TransportStreamFile:
     """TransportStreamFileオブジェクトを返すラッパー関数"""
     return TransportStreamFile(path, chunk)
 
