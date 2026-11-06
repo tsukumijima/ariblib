@@ -238,7 +238,9 @@ class TransportStreamFile(BufferedReader):
 
         pat = next(self.sections(ProgramAssociationSection))
         # PAT を探すときにチャンク単位で先読みした分にも PMT が含まれるため、先頭から読み直す
-        self.seek(0)
+        # (チューナーのパイプのようにシークできない入力では、そのまま続きから読む)
+        if self.seekable():
+            self.seek(0)
         for pmt in self.sections(ProgramMapSection, pids=pat.pmt_pids):
             for tsmap in pmt.maps:
                 if tsmap.stream_type != 0x06:
@@ -258,6 +260,10 @@ class TransportStreamFile(BufferedReader):
         from ariblib.descriptors import VideoDecodeControlDescriptor
 
         pat = next(self.sections(ProgramAssociationSection))
+        # PAT を探すときにチャンク単位で先読みした分にも PMT が含まれるため、先頭から読み直す
+        # (チューナーのパイプのようにシークできない入力では、そのまま続きから読む)
+        if self.seekable():
+            self.seek(0)
         for pmt in self.sections(ProgramMapSection, pids=pat.pmt_pids):
             for tsmap in pmt.maps:
                 for vdc in tsmap.descriptors.get(VideoDecodeControlDescriptor,

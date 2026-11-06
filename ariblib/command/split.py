@@ -44,6 +44,8 @@ def split(args: Namespace) -> None:
         new_pat = replace_pat(pat._packet)
         remained_pmt_pid = next(pat.pmt_pids)
         remained_pids.add(remained_pmt_pid)
+        # PAT を探すときにチャンク単位で先読みした分にも PMT が含まれるため、先頭から読み直す
+        ts.seek(0)
         pmt = next(ts.sections(ProgramMapSection, pids=[remained_pmt_pid]))
         # PCRと最初のストリームのPIDを残す
         remained_pids.add(pmt.PCR_PID)
