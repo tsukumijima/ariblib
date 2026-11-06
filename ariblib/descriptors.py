@@ -7,6 +7,7 @@ from typing import ClassVar, TypeVar
 from ariblib.mnemonics import (
     aribstr,
     bcd,
+    bcdtime,
     bslbf,
     cache,
     case,
@@ -325,6 +326,37 @@ class ContentDescriptor(Descriptor):
         user_nibble = uimsbf(8)
 
 
+@tag(0x63)
+class PartialTransportStreamDescriptor(Descriptor):
+
+    """パーシャルトランスポートストリーム記述子 (ARIB-STD-B21-9.1.8.3)"""
+
+    descriptor_tag = uimsbf(8)
+    descriptor_length = uimsbf(8)
+    reserved_future_use_1 = bslbf(2)
+    peak_rate = uimsbf(22)
+    reserved_future_use_2 = bslbf(2)
+    minimum_overall_smoothing_rate = uimsbf(22)
+    reserved_future_use_3 = bslbf(2)
+    maximum_overall_smoothing_buffer = uimsbf(14)
+
+
+@tag(0x85)
+class BroadcastIdDescriptor(Descriptor):
+
+    """放送 ID 記述子 (ARIB-TR-B15-1-2-6.2.4.4)
+
+    パーシャルトランスポートストリームの SIT に、元の放送の各種 ID を記述する
+    """
+
+    descriptor_tag = uimsbf(8)
+    descriptor_length = uimsbf(8)
+    original_network_id = uimsbf(16)
+    transport_stream_id = uimsbf(16)
+    event_id = uimsbf(16)
+    broadcaster_id = uimsbf(8)
+
+
 @tag(0xC0)
 class HierarchicalTransmissionDescriptor(Descriptor):
 
@@ -377,6 +409,49 @@ class DigitalCopyControlDescriptor(Descriptor):
             @case(maximum_bitrate_flag)
             class with_maximum_bitrate(Syntax):
                 maximum_bitrate = uimsbf(8)
+
+
+@tag(0xC2)
+class NetworkIdentificationDescriptor(Descriptor):
+
+    """ネットワーク識別記述子 (ARIB-STD-B21-9.1.8.3)
+
+    パーシャルトランスポートストリームの生成元のネットワークを記述する
+    media_type は 'BS' (BS・広帯域 CS)・'CS' (狭帯域 CS・高度狭帯域 CS)・'TB' (地上波) のいずれか
+    """
+
+    descriptor_tag = uimsbf(8)
+    descriptor_length = uimsbf(8)
+    country_code = char(24)
+    media_type = char(16)
+    network_id = uimsbf(16)
+    private_data = raw(lambda self: self.descriptor_length - 7)
+
+
+@tag(0xC3)
+class PartialTSTimeDescriptor(Descriptor):
+
+    """パーシャルトランスポートストリームタイム記述子 (ARIB-STD-B21-9.1.8.3)
+
+    SIT のサービスのループではイベントの開始時刻と継続時間を、伝送情報のループでは現在時刻 (JST_time) だけを記述する
+    event_start_time と duration は、記述されていない (すべてのビットが 1 の) とき None になる
+    """
+
+    descriptor_tag = uimsbf(8)
+    descriptor_length = uimsbf(8)
+    event_version_number = uimsbf(8)
+    event_start_time = mjd(40)
+    duration = bcdtime(24)
+    # event_start_time と JST_time に適用するオフセット時間 (offset_flag が 0 なら加算、1 なら減算する)
+    offset = bcdtime(24)
+    reserved = bslbf(5)
+    offset_flag = bslbf(1)
+    other_descriptor_status = bslbf(1)
+    JST_time_flag = bslbf(1)
+
+    @case(JST_time_flag)
+    class with_JST_time(Syntax):
+        JST_time = mjd(40)
 
 
 @tag(0xC4)
@@ -1075,10 +1150,7 @@ class SystemManagementDescriptor(Descriptor):
     #0x51: モザイク記述子,
     #0x55: パレンタルレート記述子,
     #0x58: ローカル時間オフセット記述子,
-    #0x63: パーシャルトランスポートストリーム識別子,
     #0x66: データブロードキャスト識別記述子,
-    #0xC2: ネットワーク識別記述子,
-    #0xC3: パーシャルトランスポートストリームタイム記述子,
     #0xC6: 対象地域記述子,
     #0xCA: CA_EMM_TS記述子,
     #0xD0: 基本ローカルイベント記述子,

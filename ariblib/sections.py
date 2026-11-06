@@ -828,6 +828,45 @@ class SoftwareDownloadTriggerSection(Section):
     CRC_32 = rpchof(32)
 
 
+class SelectionInformationSection(Section):
+
+    """選択情報セクション SIT (ARIB-STD-B21-9.1.8.2)
+
+    パーシャルトランスポートストリーム (BD などに記録された1サービス分の TS) は、SIT 以外の SI を含まない
+    SDT・EIT・TOT の代わりに、サービスとイベントの情報と現在時刻を SIT の記述子で伝送する
+    """
+
+    _pids = [0x1F]
+    _table_ids = [0x7F]
+
+    table_id = uimsbf(8)
+    section_syntax_indicator = bslbf(1)
+    reserved_future_use_1 = bslbf(1)
+    ISO_reserved_1 = bslbf(2)
+    section_length = uimsbf(12)
+    reserved_future_use_2 = bslbf(16)
+    ISO_reserved_2 = bslbf(2)
+    version_number = uimsbf(5)
+    current_next_indicator = bslbf(1)
+    section_number = uimsbf(8)
+    last_section_number = uimsbf(8)
+    reserved_future_use_3 = bslbf(4)
+    transmission_info_loop_length = uimsbf(12)
+    # パーシャルトランスポートストリーム記述子・ネットワーク識別記述子など、TS 全体の情報
+    transmission_info_descriptors = descriptors(transmission_info_loop_length)
+
+    # サービスごとの、サービス記述子や短形式イベント記述子などのサービスとイベントの情報
+    @loop(lambda self: self.section_length - 11 - self.transmission_info_loop_length)
+    class services(Syntax):
+        service_id = uimsbf(16)
+        reserved_future_use = bslbf(1)
+        running_status = uimsbf(3)
+        service_loop_length = uimsbf(12)
+        descriptors = descriptors(service_loop_length)
+
+    CRC_32 = rpchof(32)
+
+
 class DSMCCSection(Section):
 
     """ARIB-STD-B24-3-6.5
