@@ -710,7 +710,7 @@ class ExtendedBroadcasterDescriptor(Descriptor):
 
     @case(lambda self: self.broadcaster_type not in (0x1, 0x2))
     class type_other(Syntax):
-        reserved_future_use = bslbf(lambda self: self.description_length - 1)
+        reserved_future_use = bslbf(lambda self: self.descriptor_length - 1)
 
 
 @tag(0xCF)
