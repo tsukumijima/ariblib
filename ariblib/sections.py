@@ -69,9 +69,10 @@ class Section(Syntax):
 
         return self.section_length + 3 <= len(self)
 
-    def on(self, Descriptor: type[Descriptor]) -> Callable[[DescriptorCallback], None]:
+    def on(self, Descriptor: type[Descriptor], descriptor_name: str = 'descriptors') -> Callable[[DescriptorCallback], None]:
         """記述子ごとにコールバック関数を設定する
         いまのところ、一つの記述子についてコールバック関数は1つのみ定義できる
+        セクションの記述子は常に descriptors にあるため、descriptor_name は Syntax.on() と呼び出し方を揃えるためだけに受け取る
         """
 
         def attach_callback(callback: DescriptorCallback) -> None:
