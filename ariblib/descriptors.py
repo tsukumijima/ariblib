@@ -653,6 +653,12 @@ class TSInformationDescriptor(Descriptor):
         class services(Syntax):
             service_id = uimsbf(16)
 
+    # 伝送種別のループの後ろに、descriptor_length までの reserved_future_use が続く
+    reserved_future_use = bslbf(lambda self: self.descriptor_length - (
+        2 + self.length_of_ts_name +
+        sum(2 + transmission.num_of_service * 2 for transmission in self.transmissions)
+    ))
+
 
 @tag(0xCE)
 class ExtendedBroadcasterDescriptor(Descriptor):
