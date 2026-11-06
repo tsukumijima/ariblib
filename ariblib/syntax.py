@@ -126,7 +126,8 @@ class Syntax(metaclass=SyntaxType):
             name = m.name
             if isinstance(m, case_table):
                 if m.condition(self):
-                    result.extend(m.cls(self).get_names())
+                    # 条件に合うサブシンタックスは、case_table.__get__() がパケットと位置を渡して生成する
+                    result.extend(getattr(self, name).get_names())
             else:
                 result.append(name)
         return result
