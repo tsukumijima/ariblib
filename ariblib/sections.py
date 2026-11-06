@@ -700,7 +700,8 @@ class NetworkBoardInformationSection(Section):
     """
 
     _pids = [0x25]
-    _table_ids = [0x40, 0x41]
+    # 0xC5: 掲示板情報・0xC6: 掲示板情報の参照情報 (ARIB-STD-B10-2 表5-2)
+    _table_ids = [0xC5, 0xC6]
 
 
 class CommonDataSection(Section):
