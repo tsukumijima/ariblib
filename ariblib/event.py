@@ -155,7 +155,17 @@ class Event(object):
         # G0 に漢字 (ESC 0x24 0x42)・G1 に英数 (ESC 0x29 0x4A)・G2 に平仮名 (ESC 0x2A 0x30)・G3 に片仮名 (ESC 0x2B 0x31) を指示し、
         # GL に G0 (LS0)・GR に G2 (LS2R) を呼び出す
         reset_code_set = bytearray(b'\x1b\x24\x42\x1b\x29\x4a\x1b\x2a\x30\x1b\x2b\x31\x0f\x1b\x7d')
-        detail = [(key, AribString(reset_code_set.join(chunks))) for key, chunks in detail]
+        # 断片の分割位置には改行が含まれないため、続きの断片が「【」で始まる見出しのときだけ改行 (CR) を挟む
+        # (WOWOW では本文の中の「【」は常に行頭にあり、それ以外の分割位置は語や列挙の途中になっている)
+        joined_detail: list[tuple[str, AribString]] = []
+        for key, chunks in detail:
+            value = bytearray(chunks[0])
+            for chunk in chunks[1:]:
+                if str(AribString(chunk)).startswith('【'):
+                    value += b'\x0d'
+                value += reset_code_set + chunk
+            joined_detail.append((key, AribString(value)))
+        detail = joined_detail
         if detail:
             self.detail = dict(detail)
             self.longdesc = '\n'.join(
