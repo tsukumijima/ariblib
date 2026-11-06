@@ -65,6 +65,50 @@ class Event(object):
     duration: timedelta | None
     free_CA_mode: int
 
+    # 以下は、イベントが対応する記述子を持つときだけ __init__() が設定する値
+    # 記述子がなければ属性そのものが存在しないため、利用する側は hasattr() で確認してから参照する
+    # 短形式イベント記述子
+    title: AribString
+    desc: AribString
+    # コンポーネント記述子
+    video_content: int
+    video_component: int
+    video: str
+    video_text: AribString
+    # デジタルコピー制御記述子
+    copy_control_type: int
+    digital_recording_control_data: int
+    copy: str
+    # 音声コンポーネント記述子 (主音声)
+    audio_content: int
+    audio_component: int
+    samplint_rate_type: int
+    audio: str
+    sampling_rate: int
+    sampling_rate_string: str
+    audio_text: AribString
+    # 音声コンポーネント記述子 (副音声)
+    second_audio_content: int
+    second_audio_component: int
+    second_audio: str
+    second_sampling_rate: int
+    second_sampling_rate_string: str
+    second_audio_text: AribString
+    # イベントグループ記述子 (service_id から event_id への辞書)
+    group_type: int
+    group_type_string: str
+    events: dict[int, int]
+    # コンテント記述子
+    nibble1: list[int]
+    nibble2: list[int]
+    user_nibble: list[int]
+    genre: list[str]
+    subgenre: list[str]
+    user_genre: list[str]
+    # 拡張形式イベント記述子 (項目名から本文への辞書と、項目名と本文を連結した文字列)
+    detail: dict[str, AribString]
+    longdesc: str
+
     def __init__(self, eit: EventInformationSection, event: Syntax) -> None:
         for field in self.from_eit:
             setattr(self, field, getattr(eit, field))
