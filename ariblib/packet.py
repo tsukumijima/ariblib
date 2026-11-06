@@ -195,14 +195,13 @@ class TransportStreamFile(BufferedReader):
                 counter = continuity_counter(packet)
                 last_counter = last_counters.get(PID)
                 last_counters[PID] = counter
-                if last_counter is not None:
+                discontinuity =\
+                    has_adaptation(packet) and packet[4] > 0 and\
+                    packet[5] & 0x80
+                if last_counter is not None and not discontinuity:
                     if counter == last_counter:
                         continue
-                    discontinuity =\
-                        has_adaptation(packet) and packet[4] > 0 and\
-                        packet[5] & 0x80
-                    if counter != (last_counter + 1) & 0x0F and\
-                            not discontinuity:
+                    if counter != (last_counter + 1) & 0x0F:
                         buffer.clear()
 
             prev, current = payload(packet)
