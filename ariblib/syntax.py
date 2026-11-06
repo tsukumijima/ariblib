@@ -136,7 +136,6 @@ class Syntax(metaclass=SyntaxType):
         return result
 
     def dump(self, indent: int = 0) -> None:
-        from ariblib.aribstr import AribString
         from ariblib.sections import Section
         from ariblib.descriptors import Descriptor
         from types import GeneratorType
@@ -158,8 +157,10 @@ class Syntax(metaclass=SyntaxType):
             elif type(value) is GeneratorType:
                 for child in value:
                     child.dump(indent + 2)
-            elif isinstance(value, bytearray):
-                print("{}{}\t{}".format(' ' * indent, name, AribString(value)))
+            elif isinstance(value, (bytes, bytearray)):
+                # raw のフィールドは、8単位符号の文字列とは限らないバイナリ (DataEncoding 記述子など) や、
+                # 単独では正しく復号できない文字列の断片 (拡張形式イベント記述子の item_char) なので、16進数で出力する
+                print("{}{}\t{}".format(' ' * indent, name, value.hex()))
             else:
                 print("{}{}\t{}".format(' ' * indent, name, value))
 
