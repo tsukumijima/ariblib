@@ -16,15 +16,22 @@ from ariblib.constants import (
 )
 from ariblib.descriptors import (
     AudioComponentDescriptor,
+    BroadcastIdDescriptor,
+    CAIdentifierDescriptor,
     ComponentDescriptor,
     ContentDescriptor,
     DigitalCopyControlDescriptor,
     EventGroupDescriptor,
     ExtendedEventDescriptor,
+    PartialTSTimeDescriptor,
     ShortEventDescriptor,
 )
 from ariblib.packet import TransportStreamFile
-from ariblib.sections import ActualStreamEventInformationSection, EventInformationSection
+from ariblib.sections import (
+    ActualStreamEventInformationSection,
+    EventInformationSection,
+    SelectionInformationSection,
+)
 from ariblib.syntax import Syntax
 
 
@@ -41,12 +48,23 @@ def component_type_string(stream_content: int, component_type: int) -> str:
     return '未定義'
 
 
-def events(ts: TransportStreamFile, section: type[EventInformationSection] = ActualStreamEventInformationSection) -> Iterator['Event']:
-    """トランスポートストリームから Event オブジェクトを返すジェネレータ"""
+def events(
+    ts: TransportStreamFile,
+    section: type[EventInformationSection | SelectionInformationSection] = ActualStreamEventInformationSection,
+) -> Iterator['Event']:
+    """トランスポートストリームから Event オブジェクトを返すジェネレータ
 
-    for eit in ts.sections(section):
-        for event in eit.events:
-            yield Event(eit, event)
+    section に SelectionInformationSection を指定すると、パーシャルトランスポートストリーム (BD などに記録された TS) の
+    SIT の各サービスの、現在のイベントを返す
+    """
+
+    for table in ts.sections(section):
+        if isinstance(table, SelectionInformationSection):
+            for service in table.services:
+                yield Event(table, service)
+        else:
+            for event in table.events:
+                yield Event(table, event)
 
 
 class Event(object):
@@ -109,11 +127,23 @@ class Event(object):
     detail: dict[str, AribString]
     longdesc: str
 
-    def __init__(self, eit: EventInformationSection, event: Syntax) -> None:
-        for field in self.from_eit:
-            setattr(self, field, getattr(eit, field))
-        for field in self.from_event:
-            setattr(self, field, getattr(event, field))
+    def __init__(self, eit: EventInformationSection | SelectionInformationSection, event: Syntax) -> None:
+        """
+        Args:
+            eit: イベントを含む EIT。パーシャルトランスポートストリームでは、EIT の代わりに SIT を渡す
+            event: EIT のイベントのループの要素。SIT を渡したときは、SIT のサービスのループの要素
+
+        Raises:
+            ValueError: SIT のサービスに、元の放送の各種 ID を記述する放送 ID 記述子がないとき
+        """
+
+        if isinstance(eit, SelectionInformationSection):
+            self._init_from_sit(event)
+        else:
+            for field in self.from_eit:
+                setattr(self, field, getattr(eit, field))
+            for field in self.from_event:
+                setattr(self, field, getattr(event, field))
 
         desc = event.descriptors
         for sed in desc.get(ShortEventDescriptor, []):
@@ -214,6 +244,43 @@ class Event(object):
             self.detail = dict(detail)
             self.longdesc = '\n'.join(
                 "{}\n{}\n".format(key, value) for key, value in detail)
+
+
+    def _init_from_sit(self, service: Syntax) -> None:
+        """SIT のサービスの記述子から、EIT から写す値と同じ値を設定する
+
+        パーシャルトランスポートストリームの SIT は、元の放送の ID を放送 ID 記述子に、
+        イベントの開始時刻と継続時間をパーシャルトランスポートストリームタイム記述子に記述する (ARIB STD-B21 9.1.8, ARIB TR-B15 第一部 第二編 6.2.4)
+
+        Args:
+            service: SIT のサービスのループの要素
+        """
+
+        desc = service.descriptors
+        self.service_id = service.service_id
+        broadcast_ids = desc.get(BroadcastIdDescriptor, [])
+        if not broadcast_ids:
+            raise ValueError('service 0x{:04X} of the SIT has no broadcast_id_descriptor'.format(service.service_id))
+        self.transport_stream_id = broadcast_ids[0].transport_stream_id
+        self.original_network_id = broadcast_ids[0].original_network_id
+        self.event_id = broadcast_ids[0].event_id
+
+        # 開始時刻と継続時間 (記述されていなければ None)
+        # offset_flag が 0 ならオフセット時間を加算し、1 なら減算する
+        self.start_time = None
+        self.duration = None
+        for time in desc.get(PartialTSTimeDescriptor, []):
+            self.duration = time.duration
+            if time.event_start_time is not None:
+                offset = time.offset if time.offset is not None else timedelta()
+                if time.offset_flag:
+                    self.start_time = time.event_start_time - offset
+                else:
+                    self.start_time = time.event_start_time + offset
+            break
+
+        # SIT のサービスのループは free_CA_mode を持たないため、SDT と同じく CA 識別記述子の有無で有料のサービスかを判定する
+        self.free_CA_mode = 1 if desc.get(CAIdentifierDescriptor, []) else 0
 
 
 if __name__ == '__main__':
