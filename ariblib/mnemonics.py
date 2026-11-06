@@ -328,8 +328,11 @@ class case_table(mnemonic[_S_co]):
     @meta_cache('len')
     def real_length(self, instance: Syntax) -> int:
         if self.condition(instance):
-            return sum(mnemonic.real_length(instance)
-                       for mnemonic in self.cls._mnemonics)
+            # サブシンタックスの各フィールドの長さは、親ではなくサブシンタックスのインスタンスで求める
+            # 親で求めると、サブシンタックスの中の値で長さや回数が決まるフィールドを、親の __getattr__() 経由で別の条件分岐の中から探してしまう
+            sub = getattr(instance, self.name)
+            return sum(mnemonic.real_length(sub)
+                       for mnemonic in sub._mnemonics)
         return 0
 
 
