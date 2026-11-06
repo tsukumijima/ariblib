@@ -7,7 +7,10 @@ from collections.abc import Iterator
 from ariblib import tsopen
 from ariblib.event import Event
 from ariblib.packet import TransportStreamFile
-from ariblib.sections import EventInformationSection
+from ariblib.sections import (
+    ActualStreamPresentFollowingEventInformationSection,
+    ProgramAssociationSection,
+)
 
 
 def dump_json(event: Event) -> str:
@@ -27,11 +30,21 @@ def extract_epg(ts: TransportStreamFile, threshold: int = 5) -> Iterator[str]:
     count: defaultdict[tuple[str, str], int] = defaultdict(int)
     programs: dict[tuple[str, str], str] = {}
 
-    for section in ts.sections(EventInformationSection):
-        # section_number can be 0 (current program), 1 (next program)
-        # or >=2 (programs after next). We only care about current
-        # program information.
-        if section.section_number != 0:
+    # Use the first service in the PAT, because the output has no field to
+    # tell which service each program belongs to.
+    pat = next(ts.sections(ProgramAssociationSection), None)
+    if pat is None:
+        return
+    service_id = next((number for number, _pid in pat.pmt_items), None)
+    if service_id is None:
+        return
+    if ts.seekable():
+        ts.seek(0)
+
+    for section in ts.sections(ActualStreamPresentFollowingEventInformationSection):
+        # In EIT[p/f], section_number 0 is the current program and 1 is the
+        # next program. We only care about current program information.
+        if section.section_number != 0 or section.service_id != service_id:
             continue
 
         events = [Event(section, e) for e in section.events]
