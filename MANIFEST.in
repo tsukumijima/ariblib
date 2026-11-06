@@ -1,4 +1,1 @@
 include README.md
-include LICENSE
-include ariblib/drcs.tsv
-recursive-include ariblib *.py

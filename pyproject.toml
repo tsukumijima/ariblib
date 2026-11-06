@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ariblib"
+dynamic = ["version"]
+description = "python implementation of arib-std-b10 and arib-std-b24"
+authors = [
+    {name = "Chisa Youzaka", email = "ariblib@txqz.net"},
+]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Developers",
+    "Development Status :: 3 - Alpha",
+    "Natural Language :: Japanese",
+]
+
+[project.urls]
+Homepage = "http://github.com/youzaka/ariblib"
+
+[tool.setuptools.dynamic]
+version = {attr = "ariblib.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["ariblib*"]
+
+[tool.setuptools.package-data]
+ariblib = ["drcs.tsv", "py.typed"]
+
+[tool.ruff]
+# インデントの幅を4スペースに設定
+indent-width = 4
+# Python 3.10 を利用する
+target-version = "py310"
+# ビルドの成果物は対象から除外する
+extend-exclude = ["build/", "dist/"]
+
+[tool.ruff.lint]
+# flake8, pycodestyle, pyupgrade, Ruff 固有のルールを使う
+# isort (I) は既存の import の並びを全面的に並べ替えるため使わない
+select = ["F", "E", "W", "UP", "RUF"]
+ignore = [
+    "E501",    # 1行の長さを超えている場合の警告を抑制
+    "E731",    # Do not assign a `lambda` expression, use a `def` を抑制
+    "RUF001",  # 全角記号など `ambiguous unicode character` も使いたいため
+    "RUF002",  # 全角記号など `ambiguous unicode character` も使いたいため
+    "RUF003",  # 全角記号など `ambiguous unicode character` も使いたいため
+    "RUF012",
+    "UP004",   # 既存のクラスの `(object)` を書き換えないため
+    "UP031",   # 既存の % 書式を書き換えないため
+    "UP032",   # 既存の str.format() を f 文字列に書き換えないため
+]
+
+[tool.pyright]
+# Python バージョンを指定
+pythonVersion = "3.10"
+# TypeCheckingMode を strict に設定
+typeCheckingMode = "strict"
+# プロジェクトルートを指定
+pythonPlatform = "All"
+# インクルードするパッケージパス
+include = ["ariblib"]
+# 除外するパス
+exclude = [
+    "**/__pycache__",
+    "build/",
+    "dist/",
+]
+# VSCode の settings.json の diagnosticSeverityOverrides に対応する設定
+reportConstantRedefinition = "none"
+reportDeprecated = "warning"
+reportMissingTypeStubs = "none"
+reportPrivateImportUsage = "none"
+# ニーモニック (デスクリプタ) が Syntax の _packet などを読み、TransportStreamFile が各セクションの _pids などを読むように、
+# ariblib は _ で始まる属性をパッケージ内のクラス間で共有する設計のため
+reportPrivateUsage = "none"
+reportUnnecessaryComparison = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnusedFunction = "none"
