@@ -193,7 +193,8 @@ class ProgramMapSection(Section):
     def video_pids(self) -> Iterator[int]:
         """動画パケットの PID を返すジェネレータ"""
 
-        video_types = (0x01, 0x02, 0x10)
+        # MPEG-1・MPEG-2・MPEG-4 Visual・H.264 (1seg・スカパー！プレミアムサービスなど)・H.265 (4K 放送など)
+        video_types = (0x01, 0x02, 0x10, 0x1B, 0x24)
         for stream in self.maps:
             if stream.stream_type in video_types:
                 yield stream.elementary_PID
