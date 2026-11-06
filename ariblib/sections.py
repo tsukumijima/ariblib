@@ -856,7 +856,9 @@ class DSMCCSection(Section):
             class dsmccAdaptationHeader(Syntax):
                 adaptationType = uimsbf(8)
 
-                @loop(lambda: DSMCCSection.userNetWorkMessage.dsmccMessageHeader.adaptationLength)
+                # adaptationLength は adaptationType を含む dsmccAdaptationHeader 全体のバイト数
+                # ref: ISO/IEC 13818-6 2.1
+                @loop(lambda self: self.adaptationLength - 1)
                 class adaptationDataBytes(Syntax):
                     adaptationDataByte = uimsbf(8)
         downloadId = uimsbf(32)
