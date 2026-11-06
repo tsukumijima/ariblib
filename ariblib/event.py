@@ -2,6 +2,9 @@
 
 """イベントラッパー"""
 
+from collections.abc import Iterator
+from datetime import datetime, timedelta
+
 from ariblib.aribstr import AribString
 from ariblib.constants import (
     COMPONENT_TYPE,
@@ -20,10 +23,12 @@ from ariblib.descriptors import (
     ExtendedEventDescriptor,
     ShortEventDescriptor,
 )
-from ariblib.sections import ActualStreamEventInformationSection
+from ariblib.packet import TransportStreamFile
+from ariblib.sections import ActualStreamEventInformationSection, EventInformationSection
+from ariblib.syntax import Syntax
 
 
-def component_type_string(stream_content, component_type):
+def component_type_string(stream_content: int, component_type: int) -> str:
     """コンポーネント内容とコンポーネント種別に対応する記述を返す。表にない値は '未定義' になる"""
 
     table = COMPONENT_TYPE.get(stream_content, {})
@@ -36,7 +41,7 @@ def component_type_string(stream_content, component_type):
     return '未定義'
 
 
-def events(ts, section=ActualStreamEventInformationSection):
+def events(ts: TransportStreamFile, section: type[EventInformationSection] = ActualStreamEventInformationSection) -> Iterator['Event']:
     """トランスポートストリームから Event オブジェクトを返すジェネレータ"""
 
     for eit in ts.sections(section):
@@ -51,7 +56,16 @@ class Event(object):
     from_eit = ['service_id', 'transport_stream_id', 'original_network_id']
     from_event = ['event_id', 'start_time', 'duration', 'free_CA_mode']
 
-    def __init__(self, eit, event):
+    # __init__() が from_eit と from_event の名前で EIT とイベントから setattr() で写す値
+    service_id: int
+    transport_stream_id: int
+    original_network_id: int
+    event_id: int
+    start_time: datetime | None
+    duration: timedelta | None
+    free_CA_mode: int
+
+    def __init__(self, eit: EventInformationSection, event: Syntax) -> None:
         for field in self.from_eit:
             setattr(self, field, getattr(eit, field))
         for field in self.from_event:
@@ -152,10 +166,12 @@ if __name__ == '__main__':
     from subprocess import Popen, PIPE
     from ariblib import tsopen
     recpt1 = Popen(['recpt1', '236', '130', '-'], stdout=PIPE)
+    # stdout=PIPE を指定したので stdout は必ず存在する
+    assert recpt1.stdout is not None
     with tsopen(recpt1.stdout.fileno()) as ts:
         for event in events(ts):
             print(dir(event))
             try:
                 print(event.title, event.free_CA_mode)
-            except:
+            except BaseException:
                 pass

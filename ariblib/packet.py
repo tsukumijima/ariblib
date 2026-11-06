@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 from collections import defaultdict
+from collections.abc import Callable, Iterable, Iterator
 from datetime import timedelta
 from io import BufferedReader, FileIO
 from itertools import chain
+from typing import TYPE_CHECKING, TypeAlias, TypeVar
 import zlib
 
 from ariblib.mnemonics import (
@@ -16,6 +20,16 @@ from ariblib.mnemonics import (
 )
 from ariblib.sections import Section
 from ariblib.syntax import Syntax
+
+
+if TYPE_CHECKING:
+    from _typeshed import StrOrBytesPath
+
+    # on() で設定するコールバック関数
+    SectionCallback: TypeAlias = 'Callable[[Section], object]'
+
+# sections() が返すセクションのクラス
+_SectionT = TypeVar('_SectionT', bound=Section)
 
 # MPEG-2 の CRC を zlib.crc32() で計算するために、1バイトごとにビットを反転させる変換表
 BIT_REVERSE_TABLE = bytes(int(format(i, '08b')[::-1], 2) for i in range(256))
@@ -34,12 +48,12 @@ class TransportStreamFile(BufferedReader):
 
     PACKET_SIZE = 188
 
-    def __init__(self, path, chunk_size=10000):
+    def __init__(self, path: StrOrBytesPath | int, chunk_size: int = 10000) -> None:
         BufferedReader.__init__(self, FileIO(path))
         self.chunk_size = chunk_size
-        self._callbacks = dict()
+        self._callbacks: dict[type[Section], SectionCallback] = dict()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[bytes]:
         packet_size = self.PACKET_SIZE
         chunk_size = self.chunk_size
         buffer_size = packet_size * chunk_size
@@ -55,44 +69,44 @@ class TransportStreamFile(BufferedReader):
                     return
                 yield next
 
-    def __next__(self):
+    def __next__(self) -> bytes:
         return self.read(self.PACKET_SIZE)
 
-    def on(self, Section):
+    def on(self, Section: type[Section]) -> Callable[[SectionCallback], None]:
         """セクションごとにコールバック関数を設定する
         いまのところ、一つのセクションについてコールバック関数は1つのみ定義できる。
         """
 
-        def attach_callback(callback):
+        def attach_callback(callback: SectionCallback) -> None:
             self._callbacks[Section] = callback
         return attach_callback
 
-    def execute(self):
+    def execute(self) -> None:
         """指定されたセクションがyieldされるごとにコールバック関数を実行する"""
 
         for section in self.sections(*self._callbacks.keys()):
             self._callbacks[type(section)](section)
 
-    def sections(self, *Sections):
+    def sections(self, *Sections: type[_SectionT]) -> Iterator[_SectionT]:
         """パケットストリームから指定のセクションを返す"""
 
-        buf = defaultdict(bytearray)
+        buf: defaultdict[int, bytearray] = defaultdict(bytearray)
         # PID ごとの直前の continuity_counter
-        last_counters = dict()
+        last_counters: dict[int, int] = dict()
 
         target_pids =\
             set(chain.from_iterable(Section._pids for Section in Sections))
-        target_ids = dict()
+        target_ids: dict[tuple[int | None, int], type[_SectionT]] = dict()
         # CRC_32 を持つセクションは、CRC が正しいものだけを返す
-        crc_sections = set()
-        for Section in Sections:
-            if any('CRC_32' in vars(cls) for cls in Section.__mro__):
-                crc_sections.add(Section)
-            for PID in Section._pids:
-                for table_id in Section._table_ids:
-                    target_ids[(PID, table_id)] = Section
+        crc_sections: set[type[_SectionT]] = set()
+        for SectionClass in Sections:
+            if any('CRC_32' in vars(cls) for cls in SectionClass.__mro__):
+                crc_sections.add(SectionClass)
+            for PID in SectionClass._pids:
+                for table_id in SectionClass._table_ids:
+                    target_ids[(PID, table_id)] = SectionClass
 
-        def extract(PID, buffer):
+        def extract(PID: int, buffer: bytearray) -> Iterator[_SectionT]:
             """バッファの先頭から、完成しているセクションを順に取り出して返す"""
 
             while buffer:
@@ -176,7 +190,7 @@ class TransportStreamFile(BufferedReader):
 
     tables = sections
 
-    def get_caption_pid(self):
+    def get_caption_pid(self) -> int | None:
         """字幕パケットの PID を返す
 
         FIXME: 2か国語対応の場合複数の PID で字幕が提供されているかも? (未確認)
@@ -199,7 +213,7 @@ class TransportStreamFile(BufferedReader):
                     if si.component_tag == 0x87:
                         return tsmap.elementary_PID
 
-    def get_video_pid(self, video_encode_format):
+    def get_video_pid(self, video_encode_format: int) -> int | None:
         """指定のエンコードフォーマットの動画PIDを返す"""
 
         from ariblib.sections import (
@@ -217,7 +231,7 @@ class TransportStreamFile(BufferedReader):
                     if vdc.video_encode_format == video_encode_format:
                         return tsmap.elementary_PID
 
-    def pcrs(self):
+    def pcrs(self) -> Iterator[timedelta]:
         """adaptation filed にある PCR から求めた timedelta オブジェクトを返す"""
 
         for packet in self:
@@ -230,51 +244,51 @@ class TransportStreamFile(BufferedReader):
                 yield timedelta(seconds=pcr / 90000)
 
 
-def tsopen(path, chunk=10000):
+def tsopen(path: StrOrBytesPath | int, chunk: int = 10000) -> TransportStreamFile:
     """TransportStreamFileオブジェクトを返すラッパー関数"""
     return TransportStreamFile(path, chunk)
 
 
-def transport_error_indicator(packet):
+def transport_error_indicator(packet: bytes | bytearray) -> int:
     """パケットの transport_error_indocator を返す"""
     return (packet[1] & 0x80) >> 7
 
 
-def payload_unit_start_indicator(packet):
+def payload_unit_start_indicator(packet: bytes | bytearray) -> int:
     """パケットの payload_unit_start_indicator を返す"""
     return (packet[1] & 0x40) >> 6
 
 
-def transport_priority(packet):
+def transport_priority(packet: bytes | bytearray) -> int:
     """パケットの transport_priority を返す"""
     return (packet[1] & 0x20) >> 5
 
 
-def pid(packet):
+def pid(packet: bytes | bytearray) -> int:
     """パケットの pid を返す"""
     return ((packet[1] & 0x1F) << 8) | packet[2]
 
 
-def transport_scrambling_control(packet):
+def transport_scrambling_control(packet: bytes | bytearray) -> int:
     return (packet[3] & 0xC0) >> 6
 
 
-def has_adaptation(packet):
+def has_adaptation(packet: bytes | bytearray) -> int:
     """このパケットが adaptation field を持っているかどうかを返す"""
     return (packet[3] & 0x20) >> 5
 
 
-def has_payload(packet):
+def has_payload(packet: bytes | bytearray) -> int:
     """このパケットが payload を持っているかどうかを返す"""
     return (packet[3] & 0x10) >> 4
 
 
-def continuity_counter(packet):
+def continuity_counter(packet: bytes | bytearray) -> int:
     """このパケットの continuity_counter を返す"""
     return packet[3] & 0x0F
 
 
-def adaptation_field(packet):
+def adaptation_field(packet: bytes | bytearray) -> AdaptationField | bytes:
     """パケットから adaptaton field 部分を返す"""
 
     if not has_adaptation(packet):
@@ -286,7 +300,7 @@ def adaptation_field(packet):
     return AdaptationField(packet[start:end])
 
 
-def payload(packet):
+def payload(packet: bytes | bytearray) -> tuple[bytes | bytearray, bytes | bytearray]:
     """パケットから payload 部分を返す
 
     args:
@@ -491,18 +505,18 @@ class SynchronizedPacketizedElementaryStream(Section):
             data_unit_data = raw(data_unit_size)
 
     @property
-    def pts(self):
+    def pts(self) -> timedelta:
         pts = (self.PTS_1 << 30) | (self.PTS_2 << 15) | self.PTS_3
         pts_hz = 90000
         second = pts / pts_hz
         return timedelta(seconds=second)
 
-    def isfull(self):
+    def isfull(self) -> bool:
         """section_length などで指定された分以上の
         パケットを持っているかどうかを返す"""
 
         return self.PES_packet_length + 6 <= len(self)
 
 
-def raw_dump(packet):
+def raw_dump(packet: Iterable[int]) -> str:
     return ' '.join(map(lambda s: format(s, '02X'), packet))

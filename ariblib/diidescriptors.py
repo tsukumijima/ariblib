@@ -1,6 +1,8 @@
 """DII記述子の実装"""
 
 from collections import defaultdict
+from collections.abc import Callable
+from typing import ClassVar, TypeVar
 
 from ariblib.mnemonics import (
     aribstr,
@@ -17,27 +19,31 @@ from ariblib.mnemonics import (
 )
 from ariblib.syntax import Syntax
 
-tags = {}
+
+# tag() で登録する DII 記述子のクラス
+_D = TypeVar('_D', bound='DIIDescriptor')
+
+tags: dict[int, type['DIIDescriptor']] = {}
 
 
-def tag(tag_id):
-    def wrapper(cls):
+def tag(tag_id: int) -> Callable[[type[_D]], type[_D]]:
+    def wrapper(cls: type[_D]) -> type[_D]:
         cls._tag = tag_id
         tags[tag_id] = cls
         return cls
     return wrapper
 
 
-class diidescriptors(mnemonic):
+class diidescriptors(mnemonic[Syntax]):
 
     """DII記述子リスト"""
 
     @cache
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Syntax, owner: type[Syntax]) -> defaultdict[type['DIIDescriptor'], list['DIIDescriptor']]:
         length = self.real_length(instance) // 8
         start = self.start(instance) // 8
         end = start + length
-        result = defaultdict(list)
+        result: defaultdict[type[DIIDescriptor], list[DIIDescriptor]] = defaultdict(list)
         while start < end:
             descriptor_tag = instance._packet[start]
             descriptor_length = instance._packet[start + 1] + 2
@@ -57,8 +63,11 @@ class DIIDescriptor(Syntax):
     descriptor_length = uimsbf(8)
     descriptor = bslbf(descriptor_length)
 
+    # tag() で登録したときに設定する descriptor_tag の値
+    _tag: ClassVar[int]
+
     @staticmethod
-    def get(tag):
+    def get(tag: int) -> type['DIIDescriptor']:
         return tags.get(tag, DIIDescriptor)
 
 

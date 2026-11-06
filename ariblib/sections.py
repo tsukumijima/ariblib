@@ -1,5 +1,10 @@
 """各種 PSI セクションの定義"""
 
+from __future__ import annotations
+
+from collections.abc import Callable, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
+
 from ariblib.descriptors import (
     descriptors,
     ExtendedEventDescriptor,
@@ -20,6 +25,11 @@ from ariblib.mnemonics import (
 from ariblib.syntax import Syntax
 
 
+if TYPE_CHECKING:
+    from ariblib.descriptors import Descriptor
+    from ariblib.syntax import DescriptorCallback
+
+
 class Section(Syntax):
 
     """セクションの親クラス
@@ -27,13 +37,20 @@ class Section(Syntax):
     PSI はこれの子クラスとする。字幕 PES も便宜的にそうする
     """
 
-    _table_ids = range(256)
+    # このセクションを運ぶ PID の一覧
+    # 各セクションのクラスが定義する。PMT や字幕 PES のように PID が PAT や PMT で決まるセクションは、利用する側が実行時に設定する
+    # 字幕 PES の PID が見つからなかったときは None が入る (TransportStreamFile.get_caption_pid() の戻り値をそのまま設定するため)
+    _pids: ClassVar[Sequence[int | None]]
+    _table_ids: ClassVar[Sequence[int]] = range(256)
 
-    def __init__(self, packet, pos=0, parent=None):
+    # TransportStreamFile.sections() が設定する、このセクションを取り出した PID
+    _pid: int
+
+    def __init__(self, packet: bytes | bytearray, pos: int = 0, parent: Syntax | None = None) -> None:
         Syntax.__init__(self, packet, pos, parent)
-        self.callbacks = dict()
+        self.callbacks: dict[type[Descriptor], DescriptorCallback] = dict()
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         result = Syntax.__getattr__(self, name)
         if result is not None:
             return result
@@ -43,33 +60,33 @@ class Section(Syntax):
         raise AttributeError("'{}' object has no attribute '{}'".format(
             self.__class__.__name__, name))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._packet)
 
-    def isfull(self):
+    def isfull(self) -> bool:
         """section_length などで指定された分以上の
         パケットを持っているかどうかを返す"""
 
         return self.section_length + 3 <= len(self)
 
-    def on(self, Descriptor):
+    def on(self, Descriptor: type[Descriptor]) -> Callable[[DescriptorCallback], None]:
         """記述子ごとにコールバック関数を設定する
         いまのところ、一つの記述子についてコールバック関数は1つのみ定義できる
         """
 
-        def attach_callback(callback):
+        def attach_callback(callback: DescriptorCallback) -> None:
             self.callbacks[Descriptor] = callback
         return attach_callback
 
-    def execute(self):
+    def execute(self) -> None:
         """指定された記述子がyieldされるごとにコールバック関数を実行する"""
 
-        for Descriptor, descriptors in self.descriptors.items():
-            if Descriptor == ExtendedEventDescriptor:
-                self.callbacks[Descriptor](descriptors)
+        for descriptor_type, descriptor_list in self.descriptors.items():
+            if descriptor_type == ExtendedEventDescriptor:
+                self.callbacks[descriptor_type](descriptor_list)
             else:
-                for descriptor in descriptors:
-                    self.callbacks[Descriptor](descriptor)
+                for descriptor in descriptor_list:
+                    self.callbacks[descriptor_type](descriptor)
 
 
 class ProgramAssociationSection(Section):
@@ -100,14 +117,14 @@ class ProgramAssociationSection(Section):
     CRC_32 = rpchof(32)
 
     @property
-    def pmt_items(self):
+    def pmt_items(self) -> Iterator[tuple[int, int]]:
         """program_number と program_map_PID のタプルを返すジェネレータ"""
         for pid in self.pids:
             if pid.program_number:
                 yield (pid.program_number, pid.program_map_PID)
 
     @property
-    def pmt_pids(self):
+    def pmt_pids(self) -> Iterator[int]:
         """program_map_PID を返すジェネレータ"""
         for pid in self.pids:
             if pid.program_number:
@@ -149,7 +166,7 @@ class ProgramMapSection(Section):
     CRC_32 = rpchof(32)
 
     @property
-    def caption_pid(self):
+    def caption_pid(self) -> int | None:
         """字幕データのあるPIDを返す。
 
         字幕データはStream_typeが0x06(private data)で
@@ -165,7 +182,7 @@ class ProgramMapSection(Section):
             except KeyError:
                 pass
 
-    def video_pids(self):
+    def video_pids(self) -> Iterator[int]:
         """動画パケットの PID を返すジェネレータ"""
 
         video_types = (0x01, 0x02, 0x10)
@@ -173,7 +190,7 @@ class ProgramMapSection(Section):
             if stream.stream_type in video_types:
                 yield stream.elementary_PID
 
-    def audio_pids(self):
+    def audio_pids(self) -> Iterator[int]:
         """音声パケットの PID を返すジェネレータ"""
 
         audio_types = (0x03, 0x04, 0x0F, 0x11)
@@ -182,7 +199,7 @@ class ProgramMapSection(Section):
                 yield stream.elementary_PID
 
     @property
-    def data_pids_with_comoponent_tag(self):
+    def data_pids_with_comoponent_tag(self) -> Iterator[tuple[int, int]]:
         """データ放送の PIDとcomoponent_tag を返すジェネレータ"""
         data_types = (0x0B, 0x0C, 0x0D)
         for stream in self.maps:

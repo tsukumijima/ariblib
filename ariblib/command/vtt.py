@@ -1,4 +1,5 @@
 import sys
+from argparse import ArgumentParser, Namespace, _SubParsersAction
 from datetime import datetime
 
 from ariblib import tsopen
@@ -7,7 +8,8 @@ from ariblib.packet import SynchronizedPacketizedElementaryStream
 from ariblib.sections import TimeOffsetSection
 
 
-def vtt(args):
+def vtt(args: Namespace) -> None:
+    outpath: str | int
     if args.outpath == '-':
         outpath = sys.stdout.fileno()
     else:
@@ -16,7 +18,8 @@ def vtt(args):
         SynchronizedPacketizedElementaryStream._pids = [ts.get_caption_pid()]
 
         base_pcr = next(ts.pcrs())
-        base_time = next(ts.sections(TimeOffsetSection)).JST_time
+        # 字幕の時刻は base_date からの相対時刻で書き出すので、TOT の時刻は読み飛ばすだけで使わない
+        _base_time = next(ts.sections(TimeOffsetSection)).JST_time
 
         out.write('WEBVTT\n\n')
         number = 1
@@ -24,8 +27,11 @@ def vtt(args):
         #fixme: DRCS処理を隠蔽して字幕文字オブジェクトだけ返すラッパークラスが必要
         # for caption in ts.captions(drcs=True, color=True):
         #     print(caption.datetime, caption.body) みたいな
-        prev_caption_date = None
-        prev_caption = ''
+        prev_caption_date: datetime | None = None
+        prev_caption: WebVTTCProfileString | str = ''
+        # 最後の字幕の終了時刻に使う、最後の字幕パケットの時刻
+        # 字幕パケットがなければ最後の字幕も書き出さないので、この初期値は使われない
+        caption_date = base_date
         for spes in ts.sections(SynchronizedPacketizedElementaryStream):
             caption_date = base_date + (spes.pts - base_pcr)
             for data in spes.data_units:
@@ -42,6 +48,8 @@ def vtt(args):
                     prev_caption_date = caption_date
                     prev_caption = caption
         if prev_caption:
+            # prev_caption と同時に設定するので、prev_caption_date も必ず設定されている
+            assert prev_caption_date is not None
             out.write('{}\n{}.{:03d} --> {}.{:03d}\n{}\n\n'.format(
                 number, prev_caption_date.strftime('%H:%M:%S'),
                 prev_caption_date.microsecond // 1000,
@@ -50,7 +58,7 @@ def vtt(args):
                 prev_caption))
 
 
-def add_parser(parsers):
+def add_parser(parsers: '_SubParsersAction[ArgumentParser]') -> None:
     parser = parsers.add_parser('vtt')
     parser.set_defaults(command=vtt)
     parser.add_argument('inpath', help='input file path')

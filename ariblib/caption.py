@@ -1,16 +1,20 @@
 """字幕処理関係"""
 
+from collections.abc import Iterator
+from datetime import datetime
+
 from ariblib.aribgaiji import GAIJI_MAP
 from ariblib.drcs import DRCSImage, mapping
-from ariblib.packet import SynchronizedPacketizedElementaryStream
+from ariblib.packet import SynchronizedPacketizedElementaryStream, TransportStreamFile
 from ariblib.sections import TimeOffsetSection
 
 
-def captions(ts, color=False):
+def captions(ts: TransportStreamFile, color: bool = False) -> Iterator['Caption']:
     """トランスポートストリームから字幕オブジェクトを返すジェネレータ"""
 
     SynchronizedPacketizedElementaryStream._pids = [ts.get_caption_pid()]
     # 関数内で CProfileString に代入するとローカル変数になるので、別の名前で使うクラスを選ぶ
+    string_class: type[CProfileString]
     if color:
         string_class = ColoredCProfileString
     else:
@@ -20,6 +24,8 @@ def captions(ts, color=False):
     base_time = next(ts.sections(TimeOffsetSection)).JST_time
 
     for spes in ts.sections(SynchronizedPacketizedElementaryStream):
+        # TOT の JST_time は、全ビットが 1 (時刻が未定義) のときだけ None になる
+        assert base_time is not None
         caption_date = base_time + (spes.pts - base_pcr)
         for data in spes.data_units:
             if data.data_unit_parameter == 0x20:
@@ -31,12 +37,14 @@ def captions(ts, color=False):
                     for font in code.fonts:
                         image = DRCSImage(font.width, font.height)
                         image.point(font.patterns)
+                        # point() で hash が設定される
+                        assert image.hash is not None
                         string_class.drcs[drcs_code] = image.hash
                         image.save()
 
 
 class Caption(object):
-    def __init__(self, datetime, body):
+    def __init__(self, datetime: datetime, body: 'CProfileString') -> None:
         self.datetime = datetime
         self.body = body
 
@@ -51,27 +59,36 @@ class CProfileString(object):
         32: ' ',
     }
 
-    drcs = {}
+    # DRCS の文字符号ごとの、DRCS のパターンのハッシュ (drcs.tsv の mapping のキー)
+    drcs: dict[int, str] = {}
     strings = {}
 
-    def __init__(self, data):
+    def __init__(self, data: bytearray) -> None:
         self.data = data
         # __str__() で文字列化した結果を保持する (文字列化すると self.data を消費するため)
-        self._string = None
+        self._string: str | None = None
 
-    def __iter__(self):
+    def __iter__(self) -> 'CProfileString':
         return self
 
-    def __next__(self):
+    def __next__(self) -> str:
         return next(self.character())
 
-    def character(self):
+    def character(self) -> Iterator[str]:
         """一文字ずつUnicode型として返すジェネレータ"""
         while self.data:
             char1 = self.data.pop(0)
             if 0xa0 < char1 < 0xff:
+                # 2バイト目がなければ、1バイトの外字として扱う
                 try:
                     char2 = self.data.pop(0)
+                except IndexError:
+                    try:
+                        yield GAIJI_MAP[char1]
+                    except KeyError:
+                        yield '(0x{:x})'.format(char1)
+                    continue
+                try:
                     yield bytes((char1, char2)).decode('euc-jp')
                 except UnicodeDecodeError:
                     gaiji = ((char1 & 0x7f) << 8) | (char2 & 0x7f)
@@ -83,11 +100,6 @@ class CProfileString(object):
                     except KeyError:
                         yield '(0x{:x}{:x}, {}区{}点)'.format(
                             char1, char2, char1 & 0x5f, char2 & 0x5f)
-                except IndexError:
-                    try:
-                        yield GAIJI_MAP[char1]
-                    except KeyError:
-                        yield '(0x{:x})'.format(char1)
             elif 0x20 < char1 < 0x2f:
                 if char1 in self.drcs:
                     if self.drcs[char1] in mapping:
@@ -98,7 +110,7 @@ class CProfileString(object):
             elif char1 in self.mapping:
                 yield self.mapping[char1]
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self._string is None:
             self._string = ''.join(self).strip()
         return self._string
@@ -124,7 +136,7 @@ class ColoredCProfileString(CProfileString):
         0x87: '\033[37m',
     }
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self._string is None:
             self._string = ''.join(self).strip() + '\033[0m'
         return self._string
@@ -150,7 +162,7 @@ class WebVTTCProfileString(ColoredCProfileString):
         0x87: '</c>',
     }
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self._string is None:
             self._string = ''.join(self).strip()
             if self._string:

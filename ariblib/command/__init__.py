@@ -3,7 +3,7 @@ import os
 from argparse import ArgumentParser
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
     add_parsers(parser)
 
@@ -11,7 +11,7 @@ def main():
     args.command(args)
 
 
-def add_parsers(parser):
+def add_parsers(parser: ArgumentParser) -> None:
     base_dir = os.path.dirname(__file__)
     sub_parsers = parser.add_subparsers()
     for name in os.listdir(base_dir):

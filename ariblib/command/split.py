@@ -1,16 +1,18 @@
 import itertools
 import struct
+from argparse import ArgumentParser, Namespace, _SubParsersAction
+from collections.abc import Iterable, Iterator
 
 from ariblib import packet, tsopen
 from ariblib.sections import ProgramAssociationSection, ProgramMapSection
 
 
-def bits(data):
+def bits(data: Iterable[int]) -> Iterator[int]:
     masks = range(7, -1, -1)
     return ((x >> mask) & 0x01 for x, mask in itertools.product(data, masks))
 
 
-def crc32(data):
+def crc32(data: Iterable[int]) -> int:
     """CRC32を計算する"""
 
     crc = 0xFFFFFFFF
@@ -23,7 +25,7 @@ def crc32(data):
     return crc
 
 
-def replace_pat(pat):
+def replace_pat(pat: bytes | bytearray) -> bytearray:
     new_pat = bytearray(pat[:16])
     new_pat[2] = 0x11
     crc = crc32(new_pat)
@@ -32,10 +34,10 @@ def replace_pat(pat):
     return new_pat
 
 
-def split(args):
+def split(args: Namespace) -> None:
     """必要なストリームのみ残す"""
 
-    remained_pids = set()
+    remained_pids: set[int] = set()
     with tsopen(args.inpath) as ts:
         pat = next(ts.sections(ProgramAssociationSection))
         # 置き換え後の新しいPAT
@@ -60,7 +62,7 @@ def split(args):
                 out.write(p)
 
 
-def add_parser(parsers):
+def add_parser(parsers: '_SubParsersAction[ArgumentParser]') -> None:
     parser = parsers.add_parser('split')
     parser.set_defaults(command=split)
     parser.add_argument('inpath', help='input file path')

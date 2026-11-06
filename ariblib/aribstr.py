@@ -3,8 +3,9 @@
 import array
 import io
 import sys
+from collections.abc import Iterable
 
-from ariblib.aribgaiji import *
+from ariblib.aribgaiji import GAIJI_MAP, GAIJI_MAP_OTHER, GAIJI_MAP_TITLE
 
 """
 ARIB文字の実装クラス
@@ -132,22 +133,22 @@ class DesignationError(Exception):
 
 class CodeSetController:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.v_buffer = {
             Buffer.G0: CODE_SET_G[0x42],  # KANJI
             Buffer.G1: CODE_SET_G[0x4a],  # ALPHANUMERIC
             Buffer.G2: CODE_SET_G[0x30],  # HIRAGANA
             Buffer.G3: CODE_SET_G[0x31],  # KATAKANA
         }
-        self.single_shift = None
+        self.single_shift: int | None = None
         self.graphic_left = Buffer.G0   # KANJI
         self.graphic_right = Buffer.G2  # HIRAGANA
         self.esc_seq_count = 0
         self.esc_buffer_index = Buffer.G0
         self.esc_drcs = False
 
-    def designate(self, code):
-        if not code in CODE_SET_KEYS:
+    def designate(self, code: int) -> None:
+        if code not in CODE_SET_KEYS:
             raise DesignationError(
                 'esc_seq_count=%i esc_buffer_index=%s code=0x%02X' % (
                     self.esc_seq_count, self.esc_buffer_index, code
@@ -159,7 +160,7 @@ class CodeSetController:
             self.v_buffer[self.esc_buffer_index] = CODE_SET_G[code]
         self.esc_seq_count = 0
 
-    def invoke(self, buffer_index, area, locking_shift=True):
+    def invoke(self, buffer_index: int, area: int, locking_shift: bool = True) -> None:
         if CodeArea.LEFT == area:
             if locking_shift:
                 self.graphic_left = buffer_index
@@ -169,7 +170,7 @@ class CodeSetController:
             self.graphic_right = buffer_index
         self.esc_seq_count = 0
 
-    def get_current_code(self, data):
+    def get_current_code(self, data: int) -> tuple[int, int] | None:
         if 0x21 <= data <= 0x7E:
             if self.single_shift:
                 code = self.v_buffer[self.single_shift]
@@ -180,7 +181,7 @@ class CodeSetController:
             return self.v_buffer[self.graphic_right]
         return None
 
-    def set_escape(self, buffer_index, drcs):
+    def set_escape(self, buffer_index: int | None, drcs: bool) -> None:
         if buffer_index is not None:
             self.esc_buffer_index = buffer_index
         self.esc_drcs = drcs
@@ -189,7 +190,7 @@ class CodeSetController:
 
 class AribArray(bytearray):
 
-    def pop0(self):
+    def pop0(self) -> int:
         try:
             return self.pop(0)
         except IndexError:
@@ -197,33 +198,33 @@ class AribArray(bytearray):
 
 
 class AribString:
-    def __init__(self, array):
+    def __init__(self, array: Iterable[int]) -> None:
         self.control = CodeSetController()
         self.arib_array = AribArray(array)
         self.utf_buffer = io.StringIO()
         self.utf_buffer_symbol = io.StringIO()
         self.split_symbol = False
 
-    def __add__(self, other):
+    def __add__(self, other: 'AribString') -> 'AribString':
         self.arib_array += other.arib_array
         return self
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.convert_utf().rstrip()
 
-    def __nonzero__(self):
+    def __nonzero__(self) -> bool:
         return not self.arib_array
 
-    def convert_utf_split(self):
+    def convert_utf_split(self) -> tuple[str, str]:
         self.split_symbol = True
         self.convert()
         return (self.utf_buffer.getvalue(), self.utf_buffer_symbol.getvalue())
 
-    def convert_utf(self, with_gaiji=True):
+    def convert_utf(self, with_gaiji: bool = True) -> str:
         self.convert(with_gaiji)
         return self.utf_buffer.getvalue()
 
-    def write_euc(self, *euc_bytes):
+    def write_euc(self, *euc_bytes: int) -> None:
         # EUC-JIS-2004 (JIS X0213:2004 の面 1 は JIS X0208 の上位互換) として 1 文字をデコードして書き込む
         # 文字符号集合に未定義の区点は、文字列全体を捨てずにその 1 文字だけを 〓 にする
         try:
@@ -231,7 +232,7 @@ class AribString:
         except UnicodeDecodeError:
             self.utf_buffer.write(UNDEFINED_CHAR)
 
-    def convert(self, with_gaiji=True):
+    def convert(self, with_gaiji: bool = True) -> io.StringIO:
         while True:
             try:
                 data = self.arib_array.pop0()
@@ -259,8 +260,11 @@ class AribString:
                 break
         return self.utf_buffer
 
-    def do_convert(self, data, with_gaiji=True):
-        code, size = self.control.get_current_code(data)
+    def do_convert(self, data: int, with_gaiji: bool = True) -> None:
+        # convert() は GL・GR の範囲の符号だけを渡すので、get_current_code() は必ず符号集合を返す
+        current_code = self.control.get_current_code(data)
+        assert current_code is not None
+        code, size = current_code
         char = data
         char2 = 0x0
         if size == 2:
@@ -315,7 +319,7 @@ class AribString:
                     self.utf_buffer.write(
                         GAIJI_MAP.get(((char << 8) + char2), "??"))
 
-    def do_control(self, data):
+    def do_control(self, data: int) -> None:
         if data == 0x0F:
             self.control.invoke(Buffer.G0, CodeArea.LEFT, True)   # LS0
         elif data == 0x0E:
@@ -328,6 +332,8 @@ class AribString:
             self.control.esc_seq_count = 1
         elif data in CONTROL_PARAMETER_SIZE:
             # 制御符号に続くパラメータは文字符号ではないので、文字として解釈せずに読み飛ばす
+            # parameter には最後に読んだパラメータが入る (どの制御符号もパラメータを1バイト以上持つ)
+            parameter = 0
             for _ in range(CONTROL_PARAMETER_SIZE[data]):
                 parameter = self.arib_array.pop0()
             # COL・CDC は P1 が 0x20 のとき P2 がさらに 1 バイト続く
@@ -341,7 +347,7 @@ class AribString:
             if self.arib_array and 0x40 <= self.arib_array[0] <= 0x7F:
                 self.arib_array.pop0()
 
-    def do_escape(self, data):
+    def do_escape(self, data: int) -> None:
         if self.control.esc_seq_count == 1:
             if data == 0x6E:
                 self.control.invoke(Buffer.G2, CodeArea.LEFT, True)   # LS2
@@ -386,7 +392,7 @@ class AribString:
         elif self.control.esc_seq_count == 4:
             self.control.designate(data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.convert_utf().rstrip()
 
 if __name__ == '__main__':

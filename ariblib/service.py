@@ -1,24 +1,30 @@
 """サービスラッパー"""
 
+from collections.abc import Callable, Iterator
+
 from ariblib.descriptors import (
     LogoTransmissionDescriptor,
     ServiceDescriptor,
 )
+from ariblib.packet import TransportStreamFile
 from ariblib.sections import (
     ActualStreamServiceDescriptionSection,
     OtherStreamServiceDescriptionSection,
     ServiceDescriptionSection,
 )
+from ariblib.syntax import Syntax
 
 
-def services(ts, channel_id=None, single=False, stream=None):
+def services(ts: TransportStreamFile, channel_id: object = None, single: bool = False, stream: str | None = None) -> Iterator['Service']:
     """トランスポートストリームから Service オブジェクトを返すジェネレータ"""
 
+    get_channel_id: Callable[[ServiceDescriptionSection], str]
     if channel_id is None:
         get_channel_id = lambda sdt: tsid2channel(sdt.transport_stream_id)
     else:
         get_channel_id = lambda sdt: str(channel_id)
 
+    SDT: type[ServiceDescriptionSection]
     if stream == 'actual':
         SDT = ActualStreamServiceDescriptionSection
     elif stream == 'other':
@@ -36,7 +42,7 @@ def services(ts, channel_id=None, single=False, stream=None):
                 yield Service(service, get_channel_id(sdt))
 
 
-def parse_tsid(tsid):
+def parse_tsid(tsid: int) -> tuple[int, int, int, int]:
     # NHK-BS対応
     if 16625 <= tsid <= 16626:
         tsid -= 1
@@ -48,9 +54,9 @@ def parse_tsid(tsid):
     return (network_lower_4bit, new, repeater, slot)
 
 
-def tsid2channel(tsid):
+def tsid2channel(tsid: int) -> str:
     """transport_stream_id を recpt1 が認識する channel 形式に変える"""
-    lower, new, repeater, slot = parse_tsid(tsid)
+    _lower, _new, repeater, slot = parse_tsid(tsid)
     # ほんとはSystemManagementDescriptorのbroadcasting_identifierで
     # BS/CSの判別をすべきだと思う
     if repeater % 2 == 0:
@@ -63,7 +69,7 @@ class Service(object):
 
     """サービスラッパークラス"""
 
-    def __init__(self, service, channel_id):
+    def __init__(self, service: Syntax, channel_id: str) -> None:
         self.channel_id = channel_id
         if 'BS' in channel_id:
             self.broadcasting_type = 'BS'
