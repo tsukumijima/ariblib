@@ -918,10 +918,10 @@ class DSMCCSection(Section):
     class private_data_bytes(Syntax):
         private_data_bytes = raw(lambda self: self.dsmcc_section_length-9)
 
-    @case(lambda self: self.section_syntax_indicato == 0)
+    @case(lambda self: self.section_syntax_indicator == 0)
     class check_sum(Syntax):
         Checksum = uimsbf(32)
 
-    @case(lambda self: self.section_syntax_indicato != 0)
+    @case(lambda self: self.section_syntax_indicator != 0)
     class crc_32(Syntax):
         CRC_32 = rpchof(32)
