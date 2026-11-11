@@ -1,17 +1,17 @@
-[build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "ariblib"
 dynamic = ["version"]
 description = "python implementation of arib-std-b10 and arib-std-b24"
-authors = [
-    {name = "Chisa Youzaka", email = "ariblib@txqz.net"},
-]
+readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
+authors = [
+    { name = "Chisa Youzaka", email = "ariblib@txqz.net" },
+]
+maintainers = [
+    { name = "tsukumi", email = "tsukumijima@users.noreply.github.com" },
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Intended Audience :: Developers",
@@ -19,8 +19,21 @@ classifiers = [
     "Natural Language :: Japanese",
 ]
 
-[project.urls]
-Homepage = "http://github.com/youzaka/ariblib"
+[dependency-groups]
+dev = [
+    "pyright>=1.1.407",
+    "ruff>=0.14.6,<1.0.0",
+    "taskipy>=1.14.1",
+]
+
+[tool.taskipy.tasks]
+lint = "ruff check --fix . ; pyright"
+format = "ruff format ."
+typecheck = "pyright"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.dynamic]
 version = {attr = "ariblib.__version__"}
@@ -66,9 +79,7 @@ indent-style = "space"
 [tool.pyright]
 # Python バージョンを指定
 pythonVersion = "3.10"
-# TypeCheckingMode を strict に設定
 typeCheckingMode = "strict"
-# プロジェクトルートを指定
 pythonPlatform = "All"
 # インクルードするパッケージパス
 include = ["ariblib"]
@@ -78,7 +89,7 @@ exclude = [
     "build/",
     "dist/",
 ]
-# VSCode の settings.json の diagnosticSeverityOverrides に対応する設定
+# Pyright/Pylance の型チェックのうち、いくつかのエラー報告を抑制する
 reportConstantRedefinition = "none"
 reportDeprecated = "warning"
 reportMissingTypeStubs = "none"
